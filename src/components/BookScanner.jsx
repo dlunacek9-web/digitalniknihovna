@@ -1,0 +1,267 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Camera, Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine } from 'lucide-react';
+import { cleanIsbn, validateIsbn } from '../../server/isbnService'; // or re-implement cleanIsbn helper locally for frontend
+
+function cleanIsbnFrontend(isbnStr) {
+  if (!isbnStr) return '';
+  return String(isbnStr).replace(/[- \s]/g, '').trim().toUpperCase();
+}
+
+export default function BookScanner({ onIsbnDetected, onClose }) {
+  const scannerRef = useRef(null);
+  const html5QrcodeScanner = useRef(null);
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [hasPermissionError, setHasPermissionError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [manualIsbn, setManualIsbn] = useState('');
+  const [manualError, setManualError] = useState('');
+  const [isSearchingManual, setIsSearchingManual] = useState(false);
+
+  // Prevent duplicate rapid processing
+  const lastScannedIsbn = useRef(null);
+  const lastScannedTime = useRef(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const scannerId = 'reader-video-container';
+
+    const startScanner = async () => {
+      try {
+        setHasPermissionError(false);
+        setErrorMessage('');
+
+        const qrInstance = new Html5Qrcode(scannerId, {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E
+          ],
+          verbose: false
+        });
+
+        html5QrcodeScanner.current = qrInstance;
+
+        const config = {
+          fps: 15,
+          qrbox: { width: 260, height: 160 },
+          aspectRatio: 1.0
+        };
+
+        await qrInstance.start(
+          { facingMode: 'environment' },
+          config,
+          (decodedText) => {
+            if (!isMounted) return;
+
+            const now = Date.now();
+            const cleaned = cleanIsbnFrontend(decodedText);
+
+            // Debounce same ISBN within 2.5s
+            if (cleaned === lastScannedIsbn.current && now - lastScannedTime.current < 2500) {
+              return;
+            }
+
+            lastScannedIsbn.current = cleaned;
+            lastScannedTime.current = now;
+
+            // Stop scanner and notify parent
+            qrInstance.stop().then(() => {
+              if (isMounted) {
+                onIsbnDetected(cleaned);
+              }
+            }).catch(console.error);
+          },
+          () => {
+            // Frame scan failure - expected during scanning, no action needed
+          }
+        );
+
+        if (isMounted) {
+          setIsScanning(true);
+          // Check torch capability
+          try {
+            const capabilities = qrInstance.getRunningTrackCapabilities();
+            if (capabilities && capabilities.torch) {
+              setTorchSupported(true);
+            }
+          } catch (e) {
+            setTorchSupported(false);
+          }
+        }
+      } catch (err) {
+        console.error('Html5Qrcode start error:', err);
+        if (!isMounted) return;
+
+        setIsScanning(false);
+        setHasPermissionError(true);
+
+        const errStr = String(err).toLowerCase();
+        if (errStr.includes('notallowederror') || errStr.includes('permission') || errStr.includes('denied')) {
+          setErrorMessage('Přístup k fotoaparátu byl zamítnut. Pro skenování čárových kódů je potřeba povolit přístup k fotoaparátu v nastavení prohlížeče.');
+        } else if (errStr.includes('notfounderror') || errStr.includes('device not found')) {
+          setErrorMessage('Zadné vhodné zařízení s fotoaparátem nebylo nalezeno.');
+        } else {
+          setErrorMessage('Nepodařilo se spustit fotoaparát. Můžeš využít ruční zadání ISBN níže.');
+        }
+      }
+    };
+
+    // Small delay to ensure DOM element is rendered
+    const timeout = setTimeout(() => {
+      startScanner();
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+      if (html5QrcodeScanner.current && html5QrcodeScanner.current.isScanning) {
+        html5QrcodeScanner.current.stop().catch(() => {});
+      }
+    };
+  }, []);
+
+  const toggleTorch = async () => {
+    if (!html5QrcodeScanner.current || !torchSupported) return;
+    try {
+      const nextState = !torchOn;
+      await html5QrcodeScanner.current.applyVideoConstraints({
+        advanced: [{ torch: nextState }]
+      });
+      setTorchOn(nextState);
+    } catch (e) {
+      console.error('Torch toggle failed:', e);
+    }
+  };
+
+  const handleManualSubmit = (e) => {
+    e.preventDefault();
+    setManualError('');
+    const cleaned = cleanIsbnFrontend(manualIsbn);
+    if (!cleaned) {
+      setManualError('Zadejte číslo ISBN.');
+      return;
+    }
+    if (!/^(?:\d{9}[\dX]|\d{13})$/.test(cleaned)) {
+      setManualError('Neplatný formát ISBN (má mít 10 nebo 13 číslic).');
+      return;
+    }
+
+    setIsSearchingManual(true);
+    if (html5QrcodeScanner.current && html5QrcodeScanner.current.isScanning) {
+      html5QrcodeScanner.current.stop().catch(() => {});
+    }
+    onIsbnDetected(cleaned);
+  };
+
+  return (
+    <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-md space-y-4 animate-fade-in relative overflow-hidden">
+
+      {/* Top Header */}
+      <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+        <button
+          onClick={onClose}
+          className="flex items-center space-x-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Zpět do knihovny</span>
+        </button>
+
+        <span className="text-xs font-bold text-burgundy-900 flex items-center space-x-1">
+          <ScanLine className="w-4 h-4" />
+          <span>Skener ISBN</span>
+        </span>
+      </div>
+
+      {/* Camera Preview Area */}
+      <div className="relative w-full aspect-4/3 bg-stone-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+
+        {/* Scanner HTML container */}
+        <div id="reader-video-container" className="w-full h-full object-cover" />
+
+        {/* Target Overlay UI */}
+        {isScanning && !hasPermissionError && (
+          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
+            {/* Guide Frame Box */}
+            <div className="w-64 h-36 border-2 border-burgundy-500/80 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+              {/* Corner accents */}
+              <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-white rounded-tl-lg" />
+              <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-white rounded-tr-lg" />
+              <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-white rounded-bl-lg" />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-white rounded-br-lg" />
+
+              {/* Scanning red line */}
+              <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-burgundy-500 shadow-[0_0_8px_#d84a6c] animate-pulse" />
+            </div>
+
+            <p className="text-white text-xs font-semibold mt-4 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md text-center">
+              Namiř fotoaparát na čárový kód knihy
+            </p>
+          </div>
+        )}
+
+        {/* Torch Button */}
+        {isScanning && torchSupported && (
+          <button
+            onClick={toggleTorch}
+            className={`absolute top-3 right-3 p-2.5 rounded-full text-xs font-bold shadow-md transition-all ${
+              torchOn
+                ? 'bg-amber-400 text-amber-950 scale-105'
+                : 'bg-black/50 text-white hover:bg-black/70 backdrop-blur-md'
+            }`}
+          >
+            <Flashlight className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Camera Permission / Access Error State */}
+        {hasPermissionError && (
+          <div className="absolute inset-0 bg-stone-900 p-6 flex flex-col items-center justify-center text-center text-white space-y-3 z-10">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-1">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold">Přístup k fotoaparátu selhal</h4>
+            <p className="text-xs text-stone-300 leading-relaxed max-w-xs">{errorMessage}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Manual ISBN Input Fallback */}
+      <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/70">
+        <div className="flex items-center space-x-1.5 mb-2">
+          <KeyRound className="w-3.5 h-3.5 text-stone-500" />
+          <h4 className="text-xs font-bold text-stone-700">Nemůžeš kód naskenovat? Zadej ISBN ručně</h4>
+        </div>
+
+        <form onSubmit={handleManualSubmit} className="space-y-2">
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              value={manualIsbn}
+              onChange={(e) => setManualIsbn(e.target.value)}
+              placeholder="Např. 9788073880545..."
+              className="flex-1 px-3.5 py-2.5 bg-white border border-stone-200 rounded-xl text-xs font-mono text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900"
+            />
+            <button
+              type="submit"
+              disabled={isSearchingManual}
+              className="px-4 py-2.5 bg-burgundy-900 hover:bg-burgundy-800 text-white text-xs font-semibold rounded-xl flex items-center space-x-1.5 shadow-sm active:scale-95 transition-all disabled:opacity-50"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Najít</span>
+            </button>
+          </div>
+
+          {manualError && (
+            <p className="text-[11px] text-red-600 font-medium pl-1">{manualError}</p>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.local
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+
+# Environment variables
+.env
+.env.production
+
+# IDE and OS
+.DS_Store
+.vscode/
+.idea/

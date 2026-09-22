@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-burgundy-50: #fdf2f4;
+  --color-burgundy-100: #fbe5e9;
+  --color-burgundy-200: #f7ced7;
+  --color-burgundy-300: #f1a8b8;
+  --color-burgundy-400: #e77691;
+  --color-burgundy-500: #d84a6c;
+  --color-burgundy-600: #bf2f53;
+  --color-burgundy-700: #a02241;
+  --color-burgundy-800: #851f38;
+  --color-burgundy-900: #701F32;
+  --color-burgundy-950: #410c1a;
+
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #FAFAF9;
+  color: #1A1A1A;
+  -webkit-tap-highlight-color: transparent;
+}
