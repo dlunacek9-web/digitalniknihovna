@@ -8,6 +8,7 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import ProfileView from './components/ProfileView';
 import BookScanner from './components/BookScanner';
 import BookPreviewModal from './components/BookPreviewModal';
+import ManualBookEntryModal from './components/ManualBookEntryModal';
 import { BookMarked, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -17,8 +18,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
 
-  // Scanner state
+  // Scanner & manual entry state
   const [scannedPreviewBook, setScannedPreviewBook] = useState(null);
+  const [manualEntryIsbn, setManualEntryIsbn] = useState(null);
   const [isDuplicateAlert, setIsDuplicateAlert] = useState(false);
   const [notification, setNotification] = useState(null);
 
@@ -88,6 +90,7 @@ export default function App() {
       if (data.success) {
         showNotification('Kniha byla úspěšně přidána do knihovny!');
         setScannedPreviewBook(null);
+        setManualEntryIsbn(null);
         setActiveTab('library');
         fetchBooks();
       } else {
@@ -105,7 +108,8 @@ export default function App() {
       const data = await res.json();
 
       if (!data.success) {
-        showNotification(data.error || 'Knihu se nepodařilo v databázích najít.', 'error');
+        showNotification(data.error || 'Knihu se nepodařilo v databázích najít. Můžete ji vložit ručně.', 'error');
+        setManualEntryIsbn(isbn);
         return;
       }
 
@@ -115,7 +119,8 @@ export default function App() {
       });
       setIsDuplicateAlert(data.alreadyInLibrary);
     } catch (err) {
-      showNotification('Nepodařilo se vyhledat informace o knize. Zkontrolujte připojení.', 'error');
+      showNotification('Nepodařilo se vyhledat informace o knize. Můžete ji vložit ručně.', 'error');
+      setManualEntryIsbn(isbn);
     }
   };
 
@@ -244,6 +249,15 @@ export default function App() {
           alreadyInLibrary={isDuplicateAlert}
           onConfirm={handleSaveBook}
           onCancel={() => setScannedPreviewBook(null)}
+        />
+      )}
+
+      {/* Manual Book Entry Modal (if ISBN lookup fails or returns no book) */}
+      {manualEntryIsbn && (
+        <ManualBookEntryModal
+          initialIsbn={manualEntryIsbn}
+          onConfirm={handleSaveBook}
+          onCancel={() => setManualEntryIsbn(null)}
         />
       )}
 
