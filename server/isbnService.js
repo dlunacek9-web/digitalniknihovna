@@ -31,8 +31,15 @@ async function fetchFromGoogleBooks(isbn, apiKey = '') {
     const keyParam = apiKey ? `&key=${apiKey}` : '';
     const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}${keyParam}`;
     const res = await fetch(url, { headers: { 'User-Agent': 'MojeKnihovna/1.0' } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`Google Books API returned status ${res.status}`);
+      return null;
+    }
     const data = await res.json();
+    if (data.error) {
+      console.warn(`Google Books API error: ${data.error.message || JSON.stringify(data.error)}`);
+      return null;
+    }
     if (!data.items || data.items.length === 0) return null;
 
     const item = data.items[0];
