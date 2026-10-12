@@ -9,6 +9,7 @@ import ProfileView from './components/ProfileView';
 import BookScanner from './components/BookScanner';
 import BookPreviewModal from './components/BookPreviewModal';
 import ManualBookEntryModal from './components/ManualBookEntryModal';
+import { lookupByIsbn, toIsbn13 } from './services/knihovnyApi';
 import { BookMarked, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -104,20 +105,44 @@ export default function App() {
   // Handle scanned ISBN from BookScanner
   const handleIsbnDetected = async (isbn) => {
     try {
-      const res = await fetch(`/api/lookup-isbn/${encodeURIComponent(isbn)}`);
-      const data = await res.json();
+      // 1. Primary lookup directly from browser via Knihovny.cz API
+      const result = await lookupByIsbn(isbn);
 
-      if (!data.success) {
-        showNotification(data.error || 'Knihu se nepodařilo v databázích najít. Můžete ji vložit ručně.', 'error');
-        setManualEntryIsbn(isbn);
+      if (result.success && result.book) {
+        const cleanSearchIsbn = toIsbn13(isbn);
+        const alreadyInLibrary = books.some((b) => toIsbn13(b.isbn) === cleanSearchIsbn);
+
+        setScannedPreviewBook({
+          ...result.book,
+          alreadyInLibrary
+        });
+        setIsDuplicateAlert(alreadyInLibrary);
         return;
       }
 
-      setScannedPreviewBook({
-        ...data.book,
-        alreadyInLibrary: data.alreadyInLibrary
-      });
-      setIsDuplicateAlert(data.alreadyInLibrary);
+      // 2. Fallback lookup via backend lookup service
+      let fallbackData = null;
+      try {
+        const res = await fetch(`/api/lookup-isbn/${encodeURIComponent(isbn)}`);
+        fallbackData = await res.json();
+      } catch (e) {
+        // Fallback failed
+      }
+
+      if (fallbackData && fallbackData.success && fallbackData.book) {
+        setScannedPreviewBook({
+          ...fallbackData.book,
+          alreadyInLibrary: fallbackData.alreadyInLibrary
+        });
+        setIsDuplicateAlert(fallbackData.alreadyInLibrary);
+        return;
+      }
+
+      showNotification(
+        result.error || fallbackData?.error || 'Knihu se nepodařilo v databázích najít. Můžete ji vložit ručně.',
+        'error'
+      );
+      setManualEntryIsbn(isbn);
     } catch (err) {
       showNotification('Nepodařilo se vyhledat informace o knize. Můžete ji vložit ručně.', 'error');
       setManualEntryIsbn(isbn);
