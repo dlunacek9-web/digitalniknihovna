@@ -3,8 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
-      - master
+      - feat-personal-library-app-11565967582068450366
   workflow_dispatch:
 
 permissions:
