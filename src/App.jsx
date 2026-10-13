@@ -10,7 +10,8 @@ import BookScanner from './components/BookScanner';
 import BookPreviewModal from './components/BookPreviewModal';
 import ManualBookEntryModal from './components/ManualBookEntryModal';
 import { lookupByIsbn, toIsbn13 } from './services/knihovnyApi';
-import { BookMarked, Sparkles } from 'lucide-react';
+import { addBook, deleteBook, listBooks } from './services/libraryStore';
+import { BookMarked } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('library'); // 'library' | 'scan' | 'profile'
@@ -25,19 +26,14 @@ export default function App() {
   const [isDuplicateAlert, setIsDuplicateAlert] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  // Fetch books on mount or search
-  const fetchBooks = async (query = '') => {
+  // GitHub Pages is static, so the personal library is persisted locally in this browser.
+  const fetchBooks = (query = '') => {
     setLoading(true);
     try {
-      const url = query ? `/api/books?q=${encodeURIComponent(query)}` : '/api/books';
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.success) {
-        setBooks(data.books || []);
-      }
+      setBooks(listBooks(query));
     } catch (err) {
       console.error('Error fetching books:', err);
-      showNotification('Nepodařilo se načíst knihy z databáze.', 'error');
+      showNotification('Nepodařilo se načíst knihy z úložiště prohlížeče.', 'error');
     } finally {
       setLoading(false);
     }
@@ -55,50 +51,43 @@ export default function App() {
   };
 
   // Delete book from library
-  const handleDeleteBook = async (id) => {
+  const handleDeleteBook = (id) => {
     try {
-      const res = await fetch(`/api/books/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
+      if (deleteBook(id)) {
         showNotification('Kniha byla úspěšně odstraněna z knihovny.');
         setSelectedBook(null);
         fetchBooks(searchQuery);
       } else {
-        showNotification(data.error || 'Nepodařilo se odstranit knihu.', 'error');
+        showNotification('Kniha k odstranění nebyla nalezena.', 'error');
       }
     } catch (err) {
-      showNotification('Chyba při komunikaci se serverem.', 'error');
+      showNotification('Nepodařilo se uložit změnu v prohlížeči.', 'error');
     }
   };
 
   // Save book from preview
-  const handleSaveBook = async (bookData) => {
+  const handleSaveBook = (bookData) => {
     try {
-      const res = await fetch('/api/books', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bookData)
-      });
-      const data = await res.json();
+      const result = addBook(bookData);
 
-      if (res.status === 409) {
+      if (result.duplicate) {
         showNotification('Tuto knihu už v knihovně máš.', 'error');
         setScannedPreviewBook(null);
         setActiveTab('library');
         return;
       }
 
-      if (data.success) {
+      if (result.success) {
         showNotification('Kniha byla úspěšně přidána do knihovny!');
         setScannedPreviewBook(null);
         setManualEntryIsbn(null);
         setActiveTab('library');
         fetchBooks();
       } else {
-        showNotification(data.error || 'Při ukládání knihy došlo k chybě.', 'error');
+        showNotification('Při ukládání knihy došlo k chybě.', 'error');
       }
     } catch (err) {
-      showNotification('Chyba připojení k databázi.', 'error');
+      showNotification('Prohlížeč nepovolil uložení knihy.', 'error');
     }
   };
 
@@ -120,26 +109,8 @@ export default function App() {
         return;
       }
 
-      // 2. Fallback lookup via backend lookup service
-      let fallbackData = null;
-      try {
-        const res = await fetch(`/api/lookup-isbn/${encodeURIComponent(isbn)}`);
-        fallbackData = await res.json();
-      } catch (e) {
-        // Fallback failed
-      }
-
-      if (fallbackData && fallbackData.success && fallbackData.book) {
-        setScannedPreviewBook({
-          ...fallbackData.book,
-          alreadyInLibrary: fallbackData.alreadyInLibrary
-        });
-        setIsDuplicateAlert(fallbackData.alreadyInLibrary);
-        return;
-      }
-
       showNotification(
-        result.error || fallbackData?.error || 'Knihu se nepodařilo v databázích najít. Můžete ji vložit ručně.',
+        result.error || 'Knihu se nepodařilo v katalogu najít. Můžete ji vložit ručně.',
         'error'
       );
       setManualEntryIsbn(isbn);
