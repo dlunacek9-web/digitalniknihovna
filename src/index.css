@@ -62,7 +62,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
  .scanner-view>#file-decoder-temp,.scanner-view>div:first-of-type{display:none}
  .scanner-view>div:nth-of-type(2){grid-column:1/-1}.scanner-view>div:nth-of-type(3){grid-column:1;grid-row:3/span 2}
  .scanner-view>div:nth-of-type(4){grid-column:1}.scanner-view>div:nth-of-type(5){grid-column:2;grid-row:3/span 2;align-self:stretch}
- .app-bottom-nav{position:static!important;padding:0!important}.app-bottom-nav>div{padding:0!important}.app-bottom-nav nav{width:430px}
+ .app-bottom-nav>div{padding:0 30px 18px!important}.app-bottom-nav nav{width:430px}
 }
 @media(max-width:759px){
  .app-container{padding:18px 16px 28px!important}.app-header{min-height:62px;margin-bottom:23px!important;padding-bottom:15px}
