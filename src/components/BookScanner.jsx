@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine } from 'lucide-react';
-import { cleanIsbn, validateIsbn } from '../../server/isbnService'; // or re-implement cleanIsbn helper locally for frontend
+import { Camera, Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2 } from 'lucide-react';
 
 function cleanIsbnFrontend(isbnStr) {
   if (!isbnStr) return '';
@@ -9,21 +8,19 @@ function cleanIsbnFrontend(isbnStr) {
 }
 
 export default function BookScanner({ onIsbnDetected, onClose }) {
-  const scannerRef = useRef(null);
   const html5QrcodeScanner = useRef(null);
 
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermissionError, setHasPermissionError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [captureError, setCaptureError] = useState('');
+  const [isProcessingFrame, setIsProcessingFrame] = useState(false);
+
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState('');
   const [manualError, setManualError] = useState('');
   const [isSearchingManual, setIsSearchingManual] = useState(false);
-
-  // Prevent duplicate rapid processing
-  const lastScannedIsbn = useRef(null);
-  const lastScannedTime = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,6 +30,7 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
       try {
         setHasPermissionError(false);
         setErrorMessage('');
+        setCaptureError('');
 
         const qrInstance = new Html5Qrcode(scannerId, {
           formatsToSupport: [
@@ -48,43 +46,25 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
         html5QrcodeScanner.current = qrInstance;
 
         const config = {
-          fps: 15,
+          fps: 10,
           qrbox: { width: 260, height: 160 },
           aspectRatio: 1.0
         };
 
+        // We provide dummy callback for continuous scan (we won't auto-trigger on decodedText)
         await qrInstance.start(
           { facingMode: 'environment' },
           config,
-          (decodedText) => {
-            if (!isMounted) return;
-
-            const now = Date.now();
-            const cleaned = cleanIsbnFrontend(decodedText);
-
-            // Debounce same ISBN within 2.5s
-            if (cleaned === lastScannedIsbn.current && now - lastScannedTime.current < 2500) {
-              return;
-            }
-
-            lastScannedIsbn.current = cleaned;
-            lastScannedTime.current = now;
-
-            // Stop scanner and notify parent
-            qrInstance.stop().then(() => {
-              if (isMounted) {
-                onIsbnDetected(cleaned);
-              }
-            }).catch(console.error);
+          () => {
+            // No automatic processing on live stream feed; scanning is triggered explicitly by button tap
           },
           () => {
-            // Frame scan failure - expected during scanning, no action needed
+            // Frame scan failure - ignored
           }
         );
 
         if (isMounted) {
           setIsScanning(true);
-          // Check torch capability
           try {
             const capabilities = qrInstance.getRunningTrackCapabilities();
             if (capabilities && capabilities.torch) {
@@ -105,14 +85,13 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
         if (errStr.includes('notallowederror') || errStr.includes('permission') || errStr.includes('denied')) {
           setErrorMessage('Přístup k fotoaparátu byl zamítnut. Pro skenování čárových kódů je potřeba povolit přístup k fotoaparátu v nastavení prohlížeče.');
         } else if (errStr.includes('notfounderror') || errStr.includes('device not found')) {
-          setErrorMessage('Zadné vhodné zařízení s fotoaparátem nebylo nalezeno.');
+          setErrorMessage('Žádné vhodné zařízení s fotoaparátem nebylo nalezeno.');
         } else {
           setErrorMessage('Nepodařilo se spustit fotoaparát. Můžeš využít ruční zadání ISBN níže.');
         }
       }
     };
 
-    // Small delay to ensure DOM element is rendered
     const timeout = setTimeout(() => {
       startScanner();
     }, 150);
@@ -120,8 +99,14 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
     return () => {
       isMounted = false;
       clearTimeout(timeout);
-      if (html5QrcodeScanner.current && html5QrcodeScanner.current.isScanning) {
-        html5QrcodeScanner.current.stop().catch(() => {});
+      if (html5QrcodeScanner.current) {
+        try {
+          if (html5QrcodeScanner.current.isScanning) {
+            html5QrcodeScanner.current.stop().catch(() => {});
+          }
+        } catch (e) {
+          // ignore cleanup errors
+        }
       }
     };
   }, []);
@@ -139,6 +124,79 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
     }
   };
 
+  const handleCaptureAndScan = async () => {
+    if (isProcessingFrame) return;
+    setCaptureError('');
+    setIsProcessingFrame(true);
+
+    try {
+      const container = document.getElementById('reader-video-container');
+      const videoEl = container ? container.querySelector('video') : null;
+
+      if (!videoEl || videoEl.readyState < 2) {
+        setCaptureError('Fotoaparát ještě není připraven.');
+        setIsProcessingFrame(false);
+        return;
+      }
+
+      // Capture frame to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth || 1280;
+      canvas.height = videoEl.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) {
+        setCaptureError('Nepodařilo se zachytit snímek z fotoaparátu.');
+        setIsProcessingFrame(false);
+        return;
+      }
+
+      const file = new File([blob], 'captured_frame.png', { type: 'image/png' });
+
+      // Create separate instance for static image decoding
+      const fileDecoder = new Html5Qrcode('file-decoder-temp', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
+        ],
+        verbose: false
+      });
+
+      let decodedText = null;
+      try {
+        decodedText = await fileDecoder.scanFile(file, false);
+      } catch (scanErr) {
+        console.log('Static image scan error:', scanErr);
+      } finally {
+        try {
+          fileDecoder.clear();
+        } catch (e) {}
+      }
+
+      if (decodedText) {
+        const cleaned = cleanIsbnFrontend(decodedText);
+        if (html5QrcodeScanner.current) {
+          try {
+            await html5QrcodeScanner.current.stop();
+          } catch (e) {}
+        }
+        onIsbnDetected(cleaned);
+      } else {
+        setCaptureError('Čárový kód nebyl na fotce rozpoznán. Zkus zamířit přesněji nebo rozsvítit světlo.');
+      }
+    } catch (err) {
+      console.error('Capture and scan error:', err);
+      setCaptureError('Při skenování fotky došlo k chybě. Zkuste to prosím znovu.');
+    } finally {
+      setIsProcessingFrame(false);
+    }
+  };
+
   const handleManualSubmit = (e) => {
     e.preventDefault();
     setManualError('');
@@ -153,14 +211,18 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
     }
 
     setIsSearchingManual(true);
-    if (html5QrcodeScanner.current && html5QrcodeScanner.current.isScanning) {
-      html5QrcodeScanner.current.stop().catch(() => {});
+    if (html5QrcodeScanner.current) {
+      try {
+        html5QrcodeScanner.current.stop().catch(() => {});
+      } catch (e) {}
     }
     onIsbnDetected(cleaned);
   };
 
   return (
     <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-md space-y-4 animate-fade-in relative overflow-hidden">
+      {/* Hidden container for temp file decoding */}
+      <div id="file-decoder-temp" className="hidden" />
 
       {/* Top Header */}
       <div className="flex items-center justify-between pb-2 border-b border-stone-100">
@@ -180,7 +242,6 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
 
       {/* Camera Preview Area */}
       <div className="relative w-full aspect-4/3 bg-stone-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
-
         {/* Scanner HTML container */}
         <div id="reader-video-container" className="w-full h-full object-cover" />
 
@@ -195,12 +256,12 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
               <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-white rounded-bl-lg" />
               <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-white rounded-br-lg" />
 
-              {/* Scanning red line */}
-              <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-burgundy-500 shadow-[0_0_8px_#d84a6c] animate-pulse" />
+              {/* Center line */}
+              <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-burgundy-500/70" />
             </div>
 
-            <p className="text-white text-xs font-semibold mt-4 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md text-center">
-              Namiř fotoaparát na čárový kód knihy
+            <p className="text-white text-xs font-semibold mt-3 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md text-center">
+              Zaměř čárový kód v rámečku a stiskni tlačítko Skenovat
             </p>
           </div>
         )}
@@ -230,6 +291,35 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Manual Capture Button */}
+      {isScanning && !hasPermissionError && (
+        <div className="flex flex-col items-center space-y-2">
+          <button
+            onClick={handleCaptureAndScan}
+            disabled={isProcessingFrame}
+            className="w-full py-3.5 px-4 bg-burgundy-900 hover:bg-burgundy-800 text-white font-bold rounded-2xl flex items-center justify-center space-x-2 shadow-lg active:scale-98 transition-all disabled:opacity-60"
+          >
+            {isProcessingFrame ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
+                <span>Probíhá skenování...</span>
+              </>
+            ) : (
+              <>
+                <Camera className="w-5 h-5" />
+                <span>Vyfotit a naskenovat kód</span>
+              </>
+            )}
+          </button>
+
+          {captureError && (
+            <p className="text-xs font-semibold text-red-600 text-center px-2 py-1 bg-red-50 rounded-xl border border-red-100">
+              {captureError}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Manual ISBN Input Fallback */}
       <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/70">
