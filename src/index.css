@@ -44,8 +44,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .book-list p{line-height:1.45}
 .app-view input,.scanner-view input,.scanner-view select{min-height:44px;border-color:var(--line)!important;border-radius:10px!important;background:#fff!important}
 .scanner-view{max-width:920px;margin-inline:auto;padding:20px!important;box-shadow:none!important}
-.scanner-view>div:nth-of-type(2),.scanner-view>div:last-child{background:#f1f0e9!important;border-color:var(--line)!important}
-.scanner-view>div:nth-of-type(3){border-radius:14px!important}
+.scanner-view>div:nth-of-type(3),.scanner-view>div:last-child{background:#f1f0e9!important;border-color:var(--line)!important}
+.scanner-view>div:nth-of-type(4){border-radius:14px!important}
 .scanner-view #reader-video-container video{object-fit:cover}
 .app-bottom-nav>div{width:min(100%,1180px)!important;max-width:1180px!important;padding:0 30px 20px!important}
 .app-bottom-nav nav{width:min(100%,430px);margin-inline:auto;border:1px solid rgba(224,222,213,.92)!important;border-radius:16px!important;background:rgba(251,250,246,.96)!important;box-shadow:0 8px 28px rgba(30,37,31,.08)!important;backdrop-filter:blur(16px)}
@@ -60,8 +60,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
  .library-view>.animate-fade-in:has(.book-list){max-width:1120px;margin-inline:auto}
  .scanner-view{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);align-items:start;gap:16px}
  .scanner-view>#file-decoder-temp,.scanner-view>div:first-of-type{display:none}
- .scanner-view>div:nth-of-type(2){grid-column:1/-1}.scanner-view>div:nth-of-type(3){grid-column:1;grid-row:3/span 2}
- .scanner-view>div:nth-of-type(4){grid-column:1}.scanner-view>div:nth-of-type(5){grid-column:2;grid-row:3/span 2;align-self:stretch}
+ .scanner-view>div:nth-of-type(2),.scanner-view>div:nth-of-type(3){grid-column:1/-1}
+ .scanner-view>div:nth-of-type(4){grid-column:1;grid-row:3/span 2}.scanner-view>div:nth-of-type(5){grid-column:1}.scanner-view>div:nth-of-type(6){grid-column:2;grid-row:3/span 2;align-self:stretch}
  .app-bottom-nav>div{padding:0 30px 18px!important}.app-bottom-nav nav{width:430px}
 }
 @media(max-width:759px){
