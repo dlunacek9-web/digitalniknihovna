@@ -254,7 +254,7 @@ export default function App() {
   const totalPagesSum = listBooks(null).reduce((sum, b) => sum + (b.page_count || 0), 0);
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 pb-28">
+    <div className="app-shell min-h-screen bg-stone-50 text-stone-900 pb-28">
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-4 left-4 right-4 z-50 flex justify-center pointer-events-none">
@@ -277,10 +277,10 @@ export default function App() {
       )}
 
       {/* Main Container */}
-      <div className="max-w-md mx-auto px-4 pt-6">
+      <div className="app-container max-w-md mx-auto px-4 pt-6">
 
         {/* App Header */}
-        <header className="mb-5 flex items-center justify-between">
+        <header className="app-header mb-5 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
             <div className="w-10 h-10 rounded-2xl bg-burgundy-900 text-white flex items-center justify-center shadow-md shadow-burgundy-900/20">
               <BookMarked className="w-5 h-5" />
@@ -298,7 +298,7 @@ export default function App() {
 
         {/* Tab 1: Library View */}
         {activeTab === 'library' && (
-          <main className="space-y-4">
+          <main className="app-view library-view space-y-4">
             {/* IF NO LIBRARY SELECTED: Show list of libraries (Folders) */}
             {!selectedLibraryId ? (
               <div className="space-y-4 animate-fade-in">
@@ -334,7 +334,7 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="library-list space-y-3">
                     {libraries.map((lib) => {
                       const count = listBooks(lib.id).length;
                       return (
@@ -456,7 +456,7 @@ export default function App() {
                 {loading ? (
                   <LoadingSkeleton count={4} />
                 ) : books.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="book-list space-y-3">
                     {books.map((book) => (
                       <BookCard
                         key={book.id}
