@@ -1,13 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2 } from 'lucide-react';
+import { Camera, Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2, FolderPlus, Library } from 'lucide-react';
 
 function cleanIsbnFrontend(isbnStr) {
   if (!isbnStr) return '';
   return String(isbnStr).replace(/[- \s]/g, '').trim().toUpperCase();
 }
 
-export default function BookScanner({ onIsbnDetected, onClose }) {
+export default function BookScanner({
+  libraries = [],
+  selectedLibraryId = '',
+  onSelectLibrary,
+  onIsbnDetected,
+  onClose
+}) {
   const html5QrcodeScanner = useRef(null);
 
   const [isScanning, setIsScanning] = useState(false);
@@ -238,6 +244,25 @@ export default function BookScanner({ onIsbnDetected, onClose }) {
           <ScanLine className="w-4 h-4" />
           <span>Skener ISBN</span>
         </span>
+      </div>
+
+      {/* Dropdown for Target Library selection above camera */}
+      <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200/80">
+        <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1 flex items-center space-x-1.5">
+          <Library className="w-3.5 h-3.5 text-burgundy-900" />
+          <span>Uložit naskenované knihy do:</span>
+        </label>
+        <select
+          value={selectedLibraryId}
+          onChange={(e) => onSelectLibrary && onSelectLibrary(e.target.value)}
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900 cursor-pointer shadow-xs"
+        >
+          {libraries.map((lib) => (
+            <option key={lib.id} value={lib.id}>
+              {lib.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Camera Preview Area */}
