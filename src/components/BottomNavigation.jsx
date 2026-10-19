@@ -3,7 +3,7 @@ import { BookOpen, Camera, User } from 'lucide-react';
 
 export default function BottomNavigation({ activeTab, setActiveTab }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 pb-safe">
+    <div className="app-bottom-nav fixed bottom-0 left-0 right-0 z-40 pb-safe">
       <div className="max-w-md mx-auto px-4 pb-3 pt-1">
         <nav className="bg-white/90 backdrop-blur-xl border border-stone-200/80 rounded-3xl shadow-xl shadow-stone-200/50 px-3 py-2 flex items-center justify-around">
           {/* 1. Knihovna */}

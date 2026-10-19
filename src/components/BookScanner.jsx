@@ -226,7 +226,7 @@ export default function BookScanner({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-md space-y-4 animate-fade-in relative overflow-hidden">
+    <div className="scanner-view bg-white rounded-3xl p-4 border border-stone-200/80 shadow-md space-y-4 animate-fade-in relative overflow-hidden">
       {/* Hidden container for temp file decoding */}
       <div id="file-decoder-temp" className="hidden" />
 
