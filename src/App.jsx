@@ -482,7 +482,8 @@ export default function App() {
         )}
 
         {/* Tab 2: Scanner View */}
-        {activeTab === 'scan' && (
+        {/* Unmounted while a result modal is open, so the camera restarts fresh for the next book */}
+        {activeTab === 'scan' && !scannedPreviewBook && !manualEntryIsbn && (
           <BookScanner
             libraries={libraries}
             selectedLibraryId={targetScanLibraryId || getActiveLibraryId() || ''}
