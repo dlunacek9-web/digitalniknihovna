@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Camera, ChevronDown, Search, User } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronDown, Search, User, X } from 'lucide-react';
 import LibraryCabin from './components/LibraryCabin';
 import ShelfSheet from './components/ShelfSheet';
 import BookDetail from './components/BookDetail';
@@ -395,6 +395,17 @@ export default function App() {
       {/* Unmounted while a result modal is open, so the camera restarts fresh for the next book */}
       {activeTab === 'scan' && (
         <div className="page-wood wood-wall fixed inset-0 z-10 overflow-y-auto">
+          <button
+            type="button"
+            aria-label="Zavřít skener"
+            onClick={() => {
+              setActiveTab('library');
+              refresh();
+            }}
+            className="fixed top-3 right-3 z-20 w-10 h-10 rounded-full bg-white/90 text-stone-700 shadow-md border border-stone-200 flex items-center justify-center hover:bg-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
           <div className="page-wood__inner page-wood__inner--wide">
             {!scannedPreviewBook && !manualEntryIsbn && (
               <Suspense fallback={null}>

@@ -237,6 +237,11 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
   blanket.position.set(0.25, 0.8, 0.05);
   blanket.rotation.z = 0.15;
   chair.add(seat, back, armL, armR, blanket);
+  for (const [lx, lz] of [[-0.48, 0.4], [0.48, 0.4], [-0.48, -0.4], [0.48, -0.4]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.04, 0.4, 10), M.oakFrame);
+    leg.position.set(lx, 0.2, lz);
+    chair.add(leg);
+  }
   chair.position.set(-3.3, 0.3, 1.6);
   chair.rotation.y = 0.7;
   cabin.add(chair);
@@ -257,24 +262,144 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
   lampLight.shadow.mapSize.set(512, 512);
   cabin.add(lampLight);
 
+  // stolek vedle křesla s hromádkou tří knih
+  const table = new THREE.Group();
+  const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.06, 32), M.oakFrame);
+  tableTop.position.y = 0.78;
+  table.add(tableTop);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + 0.5;
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.78, 8), M.oakFrame);
+    leg.position.set(Math.cos(a) * 0.32, 0.39, Math.sin(a) * 0.32);
+    table.add(leg);
+  }
+  [[0xa8443a, 0.52, 0.14, 0.38, 0.1], [0x3d5c4c, 0.46, 0.12, 0.34, -0.18], [0xc08a3e, 0.4, 0.1, 0.3, 0.25]].reduce((y, [color, w, h, d, rot]) => {
+    const book = box(w, h, d, bookMat(color), 0.015);
+    book.position.y = y + h / 2;
+    book.rotation.y = rot;
+    table.add(book);
+    return y + h;
+  }, 0.81);
+  table.position.set(-2.1, 0.3, 0.5);
+  cabin.add(shadowy(table));
+
+  // kočka: torso (tělo, hlava, ocas) + čtyři nohy; pose se plynule míchá mezi „leží“ a „stojí“
   const cat = new THREE.Group();
+  const torso = new THREE.Group();
   const catBody = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 14), M.cat);
   catBody.scale.set(1.3, 0.65, 0.9);
-  catBody.position.y = 0.2;
-  const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), M.cat);
-  catHead.position.set(0.38, 0.25, 0.05);
+  const catHead = new THREE.Group();
+  catHead.add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), M.cat));
   for (const z of [-0.08, 0.1]) {
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 4), M.cat);
-    ear.position.set(0.4, 0.42, z);
-    cat.add(ear);
+    ear.position.set(0.02, 0.17, z);
+    catHead.add(ear);
   }
   const tail = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.05, 6, 16, Math.PI), M.cat);
   tail.rotation.x = Math.PI / 2;
-  tail.position.set(-0.1, 0.1, 0);
-  cat.add(catBody, catHead, tail);
+  tail.position.set(-0.1, -0.1, 0);
+  torso.add(catBody, catHead, tail);
+  const CAT_LEG = 0.3;
+  const catLegs = [[0.22, 0.12], [0.22, -0.12], [-0.2, 0.12], [-0.2, -0.12]].map(([lx, lz]) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, CAT_LEG, 8).translate(0, -CAT_LEG / 2, 0), M.cat);
+    leg.position.x = lx;
+    leg.position.z = lz;
+    cat.add(leg);
+    return leg;
+  });
+  const catHit = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), M.cat);
+  catHit.position.y = 0.25;
+  catHit.visible = false;
+  catHit.userData.cat = true;
+  cat.add(torso, catHit);
   cat.position.set(-1.7, 0.34, 2.8);
   cat.rotation.y = -0.4;
   cabin.add(cat);
+
+  // kočičí příběh po kliknutí: zvednout se, protáhnout, vrnět, znovu si lehnout
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const clamp01 = (t) => Math.min(1, Math.max(0, t));
+  let catAnim = null; // { start, purr }
+  let audioCtx = null;
+  function purr(seconds) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const ctx = audioCtx;
+      const len = ctx.sampleRate * 2;
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; // hnědý šum
+        data[i] = last * 3.5;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const low = ctx.createBiquadFilter();
+      low.type = 'lowpass';
+      low.frequency.value = 320;
+      const gain = ctx.createGain(); // amplitudové vrnění ~25 Hz
+      gain.gain.value = 0;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 25;
+      const lfoDepth = ctx.createGain();
+      lfoDepth.gain.value = 0.35;
+      lfo.connect(lfoDepth).connect(gain.gain);
+      const master = ctx.createGain();
+      const t0 = ctx.currentTime;
+      master.gain.setValueAtTime(0, t0);
+      master.gain.linearRampToValueAtTime(0.7, t0 + 0.6);
+      master.gain.setValueAtTime(0.7, t0 + seconds - 0.8);
+      master.gain.linearRampToValueAtTime(0, t0 + seconds);
+      const bias = ctx.createConstantSource();
+      bias.offset.value = 0.45;
+      bias.connect(gain.gain);
+      src.connect(low).connect(gain).connect(master).connect(ctx.destination);
+      for (const n of [src, lfo, bias]) n.start(t0);
+      for (const n of [src, lfo, bias]) n.stop(t0 + seconds);
+    } catch {
+      /* bez zvuku to půjde taky */
+    }
+  }
+  function petCat(now) {
+    if (catAnim) return;
+    catAnim = { start: now, purred: false };
+  }
+  // časová osa (s): 0–0.9 vstává, 0.9–2.4 protažení, 2.4–6.4 vrní, 6.4–7.6 líhá
+  function updateCat(now) {
+    let stand = 0;
+    let bow = 0;
+    let purring = 0;
+    if (catAnim) {
+      const t = (now - catAnim.start) / 1000;
+      stand = t < 6.4 ? smooth(clamp01(t / 0.9)) : 1 - smooth(clamp01((t - 6.4) / 1.2));
+      bow = Math.sin(clamp01((t - 0.9) / 1.5) * Math.PI);
+      purring = t > 2.4 && t < 6.4 ? 1 : 0;
+      if (!catAnim.purred && t > 0.9) {
+        catAnim.purred = true;
+        purr(5.5);
+      }
+      if (t > 7.6) catAnim = null;
+    }
+    const bodyY = 0.14 + 0.22 * stand;
+    const breathe = Math.sin(now * 0.002) * 0.025 * (1 - stand * 0.5);
+    torso.position.y = bodyY;
+    torso.rotation.z = -0.42 * bow;
+    catBody.scale.y = 0.65 + breathe;
+    catHead.position.set(0.38 + 0.04 * stand, 0.05 + 0.2 * stand - 0.1 * bow, 0.05 - 0.05 * (1 - stand));
+    catHead.rotation.z = 0.25 * bow - 0.15 * (1 - stand);
+    tail.rotation.y = purring * Math.sin(now * 0.008) * 0.5;
+    tail.position.y = -0.1 + 0.25 * stand;
+    for (const [i, leg] of catLegs.entries()) {
+      leg.position.y = bodyY - 0.05;
+      // při protažení jdou přední tlapky dolů a zadek nahoru
+      leg.scale.y = Math.max(0.05, (bodyY - 0.05) / CAT_LEG * (i < 2 ? 1 - 0.25 * bow : 1));
+    }
+    if (purring) catBody.position.y = Math.sin(now * 0.15) * 0.004;
+    else catBody.position.y = 0;
+  }
 
   // ---------- nástěnka s profilem (na stěně vedle krbu) ----------
   // POSTER = korková plocha; HTML panel se přilepí přesně na ni.
@@ -600,6 +725,7 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     const shelf = shelves.get(genre);
     if (!shelf) return;
     clearTimeout(resumeTimer);
+    audioCtx?.close();
     const wp = new THREE.Vector3();
     shelf.group.getWorldPosition(wp);
     const up = new THREE.Vector3(0, 1, 0);
@@ -683,9 +809,10 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     ray.setFromCamera(ptr, camera);
     const pickables = [];
     for (const s of shelves.values()) s.group.traverse((o) => o.isMesh && pickables.push(o));
-    pickables.push(posterBoard, posterPaper);
+    pickables.push(posterBoard, posterPaper, catHit);
     const hit = ray.intersectObjects(pickables, false)[0];
-    if (hit?.object.userData.poster) onPosterClick?.();
+    if (hit?.object.userData.cat) petCat(performance.now());
+    else if (hit?.object.userData.poster) onPosterClick?.();
     else if (hit?.object.userData.genre) onShelfClick?.(hit.object.userData.genre);
   };
   canvas.addEventListener('pointerdown', onDown);
@@ -733,7 +860,7 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     const f = 0.85 + Math.sin(now * 0.011) * 0.08 + Math.sin(now * 0.037) * 0.06 + Math.random() * 0.05;
     fireLight.intensity = 6 * f;
     fire.scale.set(0.8 * f, 1.2 * (2 - f), 1.1);
-    catBody.scale.y = 0.65 + Math.sin(now * 0.002) * 0.025;
+    updateCat(now);
 
     const p = snowGeo.attributes.position.array;
     for (let i = 0; i < SNOW; i++) {

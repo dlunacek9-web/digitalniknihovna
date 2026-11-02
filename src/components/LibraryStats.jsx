@@ -77,17 +77,21 @@ function GenreDonut({ genres, total }) {
   });
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-4">
       <div
         className="relative w-28 h-28 rounded-full flex-shrink-0"
         style={{ background: `conic-gradient(${segments.join(', ')})` }}
       >
-        <div className="absolute inset-[18%] rounded-full bg-white flex flex-col items-center justify-center">
+        {/* inline styl: papírek na nástěnce by z třídy bg-white udělal čárkovaný rámeček */}
+        <div
+          className="absolute inset-[18%] rounded-full flex flex-col items-center justify-center"
+          style={{ background: '#fff' }}
+        >
           <span className="text-lg font-extrabold text-stone-900 leading-none">{genres.length}</span>
           <span className="text-[9px] text-stone-400 font-medium">žánrů</span>
         </div>
       </div>
-      <ul className="flex-1 min-w-0 space-y-1.5">
+      <ul className="w-full space-y-1.5">
         {genres.map((genre, index) => (
           <li key={genre.name} className="flex items-center text-[11px]">
             <span
