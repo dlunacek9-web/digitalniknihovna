@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import purrUrl from '../assets/purr.mp3';
 import { bookColor, groupIntoShelves, plural } from '../services/genres';
 
 const PER_LEVEL = 3;
@@ -320,48 +321,11 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
   const smooth = (t) => t * t * (3 - 2 * t);
   const clamp01 = (t) => Math.min(1, Math.max(0, t));
   let catAnim = null; // { start, purr }
-  let audioCtx = null;
-  function purr(seconds) {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const ctx = audioCtx;
-      const len = ctx.sampleRate * 2;
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; // hnědý šum
-        data[i] = last * 3.5;
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      const low = ctx.createBiquadFilter();
-      low.type = 'lowpass';
-      low.frequency.value = 320;
-      const gain = ctx.createGain(); // amplitudové vrnění ~25 Hz
-      gain.gain.value = 0;
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 25;
-      const lfoDepth = ctx.createGain();
-      lfoDepth.gain.value = 0.35;
-      lfo.connect(lfoDepth).connect(gain.gain);
-      const master = ctx.createGain();
-      const t0 = ctx.currentTime;
-      master.gain.setValueAtTime(0, t0);
-      master.gain.linearRampToValueAtTime(0.7, t0 + 0.6);
-      master.gain.setValueAtTime(0.7, t0 + seconds - 0.8);
-      master.gain.linearRampToValueAtTime(0, t0 + seconds);
-      const bias = ctx.createConstantSource();
-      bias.offset.value = 0.45;
-      bias.connect(gain.gain);
-      src.connect(low).connect(gain).connect(master).connect(ctx.destination);
-      for (const n of [src, lfo, bias]) n.start(t0);
-      for (const n of [src, lfo, bias]) n.stop(t0 + seconds);
-    } catch {
-      /* bez zvuku to půjde taky */
-    }
+  const purrSound = new Audio(purrUrl);
+  purrSound.volume = 0.8;
+  function purr() {
+    purrSound.currentTime = 0;
+    purrSound.play().catch(() => {});
   }
   function petCat(now) {
     if (catAnim) return;
@@ -379,7 +343,7 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
       purring = t > 2.4 && t < 6.4 ? 1 : 0;
       if (!catAnim.purred && t > 0.9) {
         catAnim.purred = true;
-        purr(5.5);
+        purr();
       }
       if (t > 7.6) catAnim = null;
     }
@@ -725,7 +689,7 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     const shelf = shelves.get(genre);
     if (!shelf) return;
     clearTimeout(resumeTimer);
-    audioCtx?.close();
+    purrSound.pause();
     const wp = new THREE.Vector3();
     shelf.group.getWorldPosition(wp);
     const up = new THREE.Vector3(0, 1, 0);
