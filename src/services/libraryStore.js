@@ -1,4 +1,5 @@
 import { cleanIsbnDigits } from './knihovnyApi';
+import { genreOf } from './genres';
 
 const BOOKS_STORAGE_KEY = 'digitalniknihovna.books.v1';
 const LIBRARIES_STORAGE_KEY = 'digitalniknihovna.libraries.v1';
@@ -161,7 +162,7 @@ export function listBooks(libraryId = null, query = '') {
   if (!needle) return books;
 
   return books.filter((book) =>
-    [book.title, book.authors, book.isbn, book.publisher]
+    [book.title, book.authors, book.isbn, book.publisher, genreOf(book)]
       .filter(Boolean)
       .some((value) => String(value).toLocaleLowerCase('cs').includes(needle))
   );
@@ -261,7 +262,7 @@ export function importLibraryData({ libraries, books }) {
   return { librariesAdded: newLibraries.length, booksAdded: addedBooks.length, booksSkipped: books.length - addedBooks.length };
 }
 
-function updateBook(id, changes) {
+export function updateBook(id, changes) {
   const books = readBooksRaw();
   const index = books.findIndex((book) => book.id === id);
   if (index === -1) return null;

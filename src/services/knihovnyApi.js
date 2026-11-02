@@ -1,3 +1,5 @@
+import { classifyGenre } from './genres';
+
 /**
  * Knihovny.cz API Service
  * Handles direct browser fetch calls to https://www.knihovny.cz/api/v1/search
@@ -203,7 +205,8 @@ export function normalizeRecord(record) {
     publisher,
     publication_date: publicationDate,
     page_count: pageCount,
-    genre: parseGenre(record.subjects),
+    // Žánr rovnou srovnaný do poliček chaty (např. „vědecko-fantastické romány“ → „Sci-fi“)
+    genre: classifyGenre(record.subjects) || parseGenre(record.subjects),
     description: '',
     cover_url: null,
     cnb: record.cnb ?? null,
