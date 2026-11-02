@@ -243,61 +243,145 @@ export async function searchKnihovnyApi({ lookfor, type, limit = 10 }) {
 }
 
 /**
- * Looks up a book by ISBN from Knihovny.cz API.
- * Converts input ISBN to 13-digit format, queries API with limit=10,
- * and finds record that explicitly contains the matching 13-digit ISBN in its `isbns` array.
+ * Converts a 978-prefixed ISBN-13 to ISBN-10. Older Czech books are often
+ * indexed in Knihovny.cz only under their ISBN-10, so the ISBN-13 search misses them.
+ * Returns '' when no ISBN-10 exists (e.g. 979 prefix).
+ */
+export function toIsbn10(isbnStr) {
+  const digits = cleanIsbnDigits(isbnStr);
+  if (digits.length === 10) return digits;
+  if (digits.length !== 13 || !digits.startsWith('978')) return '';
+
+  const core = digits.substring(3, 12);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(core[i], 10) * (10 - i);
+  }
+  const check = (11 - (sum % 11)) % 11;
+  return core + (check === 10 ? 'X' : String(check));
+}
+
+async function fetchJson(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function findInKnihovny(isbn13) {
+  const queries = [isbn13];
+  const isbn10 = toIsbn10(isbn13);
+  if (isbn10) queries.push(isbn10);
+
+  for (const lookfor of queries) {
+    const records = await searchKnihovnyApi({ lookfor, type: 'ISN', limit: 10 });
+    // Find the record whose isbns array actually contains the searched ISBN
+    const matchingRecord = (records || []).find((rec) => {
+      if (!Array.isArray(rec.isbns)) return false;
+      return rec.isbns.some((rawIsbn) => toIsbn13(rawIsbn) === isbn13);
+    });
+    if (matchingRecord) return normalizeRecord(matchingRecord);
+  }
+  return null;
+}
+
+async function findInGoogleBooks(isbn13) {
+  const data = await fetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn13}`);
+  const info = data?.items?.[0]?.volumeInfo;
+  if (!info || !info.title) return null;
+
+  const thumb = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || null;
+  return {
+    id: null,
+    isbn: isbn13,
+    title: info.subtitle ? `${info.title} : ${info.subtitle}` : info.title,
+    authors: Array.isArray(info.authors) && info.authors.length ? info.authors.join(', ') : 'Neznámý autor',
+    publisher: info.publisher || '',
+    publication_date: parseYear(info.publishedDate),
+    page_count: info.pageCount || null,
+    description: info.description || '',
+    cover_url: thumb ? thumb.replace(/^http:/, 'https:') : null,
+    cnb: null,
+    formats: [],
+    rawIsbns: []
+  };
+}
+
+async function findInOpenLibrary(isbn13) {
+  const fields = 'title,subtitle,author_name,publisher,first_publish_year,publish_year,number_of_pages_median,cover_i';
+  const data = await fetchJson(`https://openlibrary.org/search.json?q=isbn:${isbn13}&limit=1&fields=${fields}`);
+  const doc = data?.docs?.[0];
+  if (!doc || !doc.title) return null;
+
+  const year = Array.isArray(doc.publish_year) && doc.publish_year.length
+    ? String(Math.max(...doc.publish_year))
+    : (doc.first_publish_year ? String(doc.first_publish_year) : '');
+  return {
+    id: null,
+    isbn: isbn13,
+    title: doc.subtitle ? `${doc.title} : ${doc.subtitle}` : doc.title,
+    authors: Array.isArray(doc.author_name) && doc.author_name.length ? doc.author_name.join(', ') : 'Neznámý autor',
+    publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : '',
+    publication_date: year,
+    page_count: doc.number_of_pages_median || null,
+    description: '',
+    cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : null,
+    cnb: null,
+    formats: [],
+    rawIsbns: []
+  };
+}
+
+/**
+ * Looks up a book by ISBN.
+ * Tries Knihovny.cz first (ISBN-13, then ISBN-10), then Google Books and Open Library,
+ * so books missing from Czech library catalogs are still found.
  *
  * @param {string} isbnStr
  * @returns {Promise<{ success: boolean, book?: Object, error?: string }>}
  */
 export async function lookupByIsbn(isbnStr) {
   const isbn13 = toIsbn13(isbnStr);
-  if (!isbn13 || (isbn13.length !== 10 && isbn13.length !== 13)) {
+  if (!isbn13 || isbn13.length !== 13) {
     return {
       success: false,
       error: 'Neplatný formát ISBN.'
     };
   }
 
+  let knihovnyError = null;
+  let book = null;
   try {
-    const records = await searchKnihovnyApi({
-      lookfor: isbn13,
-      type: 'ISN',
-      limit: 10
-    });
-
-    if (!records || records.length === 0) {
-      return {
-        success: false,
-        error: `Kniha s ISBN ${isbnStr} nebyla v katalogu Knihovny.cz nalezena.`
-      };
-    }
-
-    // Find the record whose isbns array actually contains the searched 13-digit ISBN
-    const matchingRecord = records.find((rec) => {
-      if (!Array.isArray(rec.isbns)) return false;
-      return rec.isbns.some((rawIsbn) => toIsbn13(rawIsbn) === isbn13);
-    });
-
-    if (!matchingRecord) {
-      return {
-        success: false,
-        error: `Kniha s ISBN ${isbnStr} nebyla v katalogu Knihovny.cz nalezena.`
-      };
-    }
-
-    const normalizedBook = normalizeRecord(matchingRecord);
-    // Ensure the book's main ISBN is set to searched 13-digit ISBN
-    normalizedBook.isbn = isbn13;
-
-    return {
-      success: true,
-      book: normalizedBook
-    };
+    book = await findInKnihovny(isbn13);
   } catch (err) {
+    knihovnyError = err;
+  }
+
+  if (!book) book = await findInGoogleBooks(isbn13);
+  if (!book) book = await findInOpenLibrary(isbn13);
+
+  if (book) {
+    // Ensure the book's main ISBN is set to searched 13-digit ISBN
+    book.isbn = isbn13;
+    return { success: true, book };
+  }
+
+  if (knihovnyError) {
     return {
       success: false,
-      error: err.message || 'Nepodařilo se vyhledat informace o knize.'
+      error: knihovnyError.message || 'Nepodařilo se vyhledat informace o knize.'
     };
   }
+
+  return {
+    success: false,
+    error: `Kniha s ISBN ${isbn13} nebyla v katalogu Knihovny.cz ani v dalších databázích nalezena.`
+  };
 }
