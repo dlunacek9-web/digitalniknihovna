@@ -217,3 +217,46 @@ export function deleteBook(id) {
   writeBooksRaw(remainingBooks);
   return true;
 }
+
+export function exportLibraryData() {
+  return { libraries: readLibraries(), books: readBooksRaw() };
+}
+
+// Merges a backup into the current data. Existing libraries and books are kept;
+// a book is skipped if its id already exists or its ISBN is already in the same library.
+export function importLibraryData({ libraries, books }) {
+  const currentLibraries = readLibraries();
+  const knownLibIds = new Set(currentLibraries.map((lib) => lib.id));
+  const newLibraries = libraries.filter((lib) => !knownLibIds.has(lib.id));
+  writeLibraries([...currentLibraries, ...newLibraries]);
+
+  const currentBooks = readBooksRaw();
+  const knownBookIds = new Set(currentBooks.map((book) => book.id));
+  const knownIsbns = new Set(
+    currentBooks
+      .filter((book) => book.isbn)
+      .map((book) => `${book.library_id || 'lib_default_1'}|${cleanIsbnDigits(book.isbn)}`)
+  );
+
+  const addedBooks = [];
+  for (const book of books) {
+    const libId = book.library_id || 'lib_default_1';
+    const isbnKey = book.isbn ? `${libId}|${cleanIsbnDigits(book.isbn)}` : null;
+    if ((book.id && knownBookIds.has(book.id)) || (isbnKey && knownIsbns.has(isbnKey))) {
+      continue;
+    }
+
+    const savedBook = {
+      ...book,
+      id: book.id || `b_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      library_id: libId,
+      created_at: book.created_at || new Date().toISOString()
+    };
+    addedBooks.push(savedBook);
+    knownBookIds.add(savedBook.id);
+    if (isbnKey) knownIsbns.add(isbnKey);
+  }
+
+  writeBooksRaw([...addedBooks, ...currentBooks]);
+  return { librariesAdded: newLibraries.length, booksAdded: addedBooks.length, booksSkipped: books.length - addedBooks.length };
+}
