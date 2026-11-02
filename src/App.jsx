@@ -25,7 +25,7 @@ import {
 } from './services/libraryStore';
 import { genreOf, groupIntoShelves, plural } from './services/genres';
 
-// Skener (html5-qrcode) se načte až při prvním otevření.
+// Skener (ZXing WASM) se načte až při prvním otevření.
 const BookScanner = lazy(() => import('./components/BookScanner'));
 
 export default function App() {

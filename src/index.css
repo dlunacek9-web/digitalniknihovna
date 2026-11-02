@@ -46,9 +46,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .book-list p{line-height:1.45}
 .app-view input,.scanner-view input,.scanner-view select{min-height:44px;border-color:var(--line)!important;border-radius:10px!important;background:#fff!important}
 .scanner-view{max-width:920px;margin-inline:auto;padding:20px!important;box-shadow:none!important}
-.scanner-view>div:nth-of-type(3),.scanner-view>div:last-child{background:#f1f0e9!important;border-color:var(--line)!important}
-.scanner-view>div:nth-of-type(4){border-radius:14px!important}
-.scanner-view #reader-video-container video{object-fit:cover}
+.scanner-view>div:nth-of-type(2),.scanner-view>div:last-child{background:#f1f0e9!important;border-color:var(--line)!important}
+.scanner-view>div:nth-of-type(3){border-radius:14px!important}
 .app-bottom-nav>div{width:min(100%,1180px)!important;max-width:1180px!important;padding:0 30px 20px!important}
 .app-bottom-nav nav{width:min(100%,430px);margin-inline:auto;border:1px solid rgba(224,222,213,.92)!important;border-radius:16px!important;background:rgba(251,250,246,.96)!important;box-shadow:0 8px 28px rgba(30,37,31,.08)!important;backdrop-filter:blur(16px)}
 .app-bottom-nav nav>button{min-width:84px}
