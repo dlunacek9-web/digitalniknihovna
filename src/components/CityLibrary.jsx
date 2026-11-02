@@ -1,8 +1,32 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BookPlus, Search, X } from 'lucide-react';
 import { createCityScene } from '../city/cityScene';
-import { SEARCH_LANGS, SEARCH_SCOPES, browseWorldBooks, searchWorldBooks } from '../services/bookSearch';
+import { SEARCH_LANGS, SEARCH_SCOPES, searchWorldBooks } from '../services/bookSearch';
+import { FEATURED_BOOKS } from '../services/featuredBooks';
 import { bookColor, isLightColor } from '../services/genres';
+
+function BookList({ books, onPick }) {
+  return (
+    <ul className="tome__results">
+      {books.map((book, i) => {
+        const color = bookColor(book);
+        return (
+          <li key={`${book.isbn || book.title}-${i}`}>
+            <button type="button" onClick={() => onPick(book)}>
+              <span className="tome__spine" style={{ background: color, color: isLightColor(color) ? '#2A2420' : '#fff' }}>
+                {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" onError={(e) => e.currentTarget.remove()} />}
+              </span>
+              <span className="tome__meta">
+                <b>{book.title}</b>
+                <small>{[book.authors, book.publication_date].filter(Boolean).join(' · ')}</small>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /**
  * Městská knihovna: tajemná hala, kde se hledá v celosvětové databázi.
@@ -15,8 +39,6 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
   const stageRef = useRef(null);
   const sceneRef = useRef(null);
   const inputRef = useRef(null);
-  const pageRef = useRef(null);
-  const sentinelRef = useRef(null);
 
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState('all');
@@ -26,8 +48,6 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
   const [selected, setSelected] = useState(null);
   const [phase, setPhase] = useState('intro'); // intro: kamera se snáší chodbou
   const [closing, setClosing] = useState(false);
-  // Výchozí nekonečný seznam, dokud se nehledá.
-  const [browse, setBrowse] = useState({ books: [], page: 0, hasMore: true, loading: false, failed: false });
 
   useEffect(() => {
     onProgress?.({ phase, queryLen: query.trim().length });
@@ -73,41 +93,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
     return () => clearTimeout(timer);
   }, [query, scope, lang]);
 
-  // Změna jazyka začíná výchozí seznam od začátku.
-  useEffect(() => {
-    setBrowse({ books: [], page: 0, hasMore: true, loading: false, failed: false });
-  }, [lang]);
-
   const browsing = query.trim().length < 2;
-  const loadMore = useCallback(async () => {
-    if (browse.loading || !browse.hasMore || browse.failed) return;
-    const next = browse.page + 1;
-    setBrowse((b) => ({ ...b, loading: true }));
-    try {
-      const { books, hasMore } = await browseWorldBooks({ lang, page: next });
-      setBrowse((b) => {
-        if (b.page + 1 !== next) return b;
-        const seen = new Set(b.books.map((x) => x.isbn || x.title));
-        const fresh = books.filter((x) => !seen.has(x.isbn || x.title));
-        return { books: [...b.books, ...fresh], page: next, hasMore, loading: false, failed: false };
-      });
-    } catch {
-      setBrowse((b) => ({ ...b, loading: false, failed: true }));
-    }
-  }, [browse, lang]);
-
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!browsing || !node || phase === 'intro') return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { root: pageRef.current, rootMargin: '400px' }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [browsing, phase, loadMore, browse.books.length]);
 
   useEffect(() => {
     if (phase === 'search') inputRef.current?.focus({ preventScroll: true });
@@ -221,64 +207,12 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
             <p className="tome__note">Knihovny.cz · Google Books · Open Library</p>
           </div>
 
-          <div ref={pageRef} className="tome__page tome__page--right">
-            {browsing ? (
-              <>
-                <ul className="tome__results">                {browse.books.map((book, i) => {
-                  const color = bookColor(book);
-                  return (
-                    <li key={`${book.isbn || book.title}-${i}`}>
-                      <button type="button" onClick={() => summon(book)}>
-                        <span className="tome__spine" style={{ background: color, color: isLightColor(color) ? '#2A2420' : '#fff' }}>
-                          {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" onError={(e) => e.currentTarget.remove()} />}
-                        </span>
-                        <span className="tome__meta">
-                          <b>{book.title}</b>
-                          <small>
-                            {[book.authors, book.publication_date].filter(Boolean).join(' · ')}
-                          </small>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}</ul>
-                {browse.books.length === 0 && browse.loading && <p className="tome__empty">Listuji v regálech…</p>}
-                {browse.failed && (
-                  <p className="tome__empty">
-                    Katalog neodpovídá.{' '}
-                    <button type="button" className="text-btn" onClick={() => setBrowse((b) => ({ ...b, failed: false }))}>
-                      Zkusit znovu
-                    </button>
-                  </p>
-                )}
-                {browse.hasMore && !browse.failed && <div ref={sentinelRef} className="tome__sentinel" aria-hidden="true" />}
-                {browse.loading && browse.books.length > 0 && <p className="tome__empty">Listuji dál…</p>}
-              </>
-            ) : (
-              <>
-                {status === 'loading' && <p className="tome__empty">Listuji v regálech…</p>}
-                {status === 'error' && <p className="tome__empty">Katalogy neodpovídají. Zkus to za chvíli.</p>}
-                {status === 'done' && results.length === 0 && <p className="tome__empty">Nic takového tu nestojí.</p>}
-                {status === 'done' && results.length > 0 && <ul className="tome__results">                {results.map((book, i) => {
-                  const color = bookColor(book);
-                  return (
-                    <li key={`${book.isbn || book.title}-${i}`}>
-                      <button type="button" onClick={() => summon(book)}>
-                        <span className="tome__spine" style={{ background: color, color: isLightColor(color) ? '#2A2420' : '#fff' }}>
-                          {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" onError={(e) => e.currentTarget.remove()} />}
-                        </span>
-                        <span className="tome__meta">
-                          <b>{book.title}</b>
-                          <small>
-                            {[book.authors, book.publication_date].filter(Boolean).join(' · ')}
-                          </small>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}</ul>}
-              </>
-            )}
+          <div className="tome__page tome__page--right">
+            {browsing && <BookList books={FEATURED_BOOKS} onPick={summon} />}
+            {!browsing && status === 'loading' && <p className="tome__empty">Listuji v regálech…</p>}
+            {!browsing && status === 'error' && <p className="tome__empty">Katalogy neodpovídají. Zkus to za chvíli.</p>}
+            {!browsing && status === 'done' && results.length === 0 && <p className="tome__empty">Nic takového tu nestojí.</p>}
+            {!browsing && status === 'done' && results.length > 0 && <BookList books={results} onPick={summon} />}
           </div>
         </section>
 
