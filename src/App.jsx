@@ -76,6 +76,7 @@ export default function App() {
     }
   });
   const [catPets, setCatPets] = useState(0);
+  const [librarySwitches, setLibrarySwitches] = useState(0);
   const [cityProgress, setCityProgress] = useState({ phase: '', queryLen: 0 });
   const sceneApiRef = useRef(null);
   const exitTutorial = () => {
@@ -155,6 +156,7 @@ export default function App() {
 
   // Library Handlers
   const switchLibrary = (libId) => {
+    if (tutorialOn) setLibrarySwitches((n) => n + 1);
     setActiveLibraryId(libId);
     setActiveLibraryIdState(libId);
     setTargetScanLibraryId(libId);
@@ -571,6 +573,8 @@ export default function App() {
             selectedBookId,
             shelfCount: shelves.length,
             catPets,
+            librariesOpen,
+            librarySwitches,
             cityOpen,
             cityPhase: cityProgress.phase,
             cityQueryLen: cityProgress.queryLen

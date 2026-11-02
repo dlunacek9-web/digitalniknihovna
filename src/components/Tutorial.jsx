@@ -117,10 +117,26 @@ export const TUTORIAL_STEPS = [
     done: (c) => !c.cityOpen
   },
   {
+    id: 'libSwitch',
+    anchor: '.cabin-library-btn',
+    title: 'Vlastní chata',
+    text: 'Každá knihovna je samostatná chata. Tahle je ukázková, tak si pojďme přepnout do vlastní. Klikni na název knihovny.',
+    side: 'below-left',
+    done: (c) => c.librariesOpen || c.librarySwitches > 0
+  },
+  {
+    id: 'libCreate',
+    anchor: '.search-sheet[aria-label="Moje knihovny"] .search-sheet__panel > .library-sheet__form',
+    title: 'Postav si chatu',
+    text: 'Pojmenuj svou chatu (třeba „Doma“) a klikni na „Postavit chatu“. Už máš vlastní? Klidně ji vyber v seznamu.',
+    side: 'below-left',
+    done: (c) => c.librarySwitches > 0
+  },
+  {
     id: 'finish',
     anchor: null,
     title: 'Máš hotovo!',
-    text: 'Teď už víš, jak to tu funguje. Užij si svou chatu plnou knih.',
+    text: 'Jsi ve své chatě. Knihy do ní přidáš skenerem nebo z městské knihovny a poličky přibydou samy. Užij si ji.',
     final: true
   }
 ];
@@ -239,7 +255,7 @@ export default function Tutorial({ context, sceneApiRef, onExit }) {
           <p>{step.text}</p>
           {step.final && (
             <button type="button" className="dock-btn btn-ember tour-bubble__done" onClick={() => onExit('done')}>
-              Do chaty
+              Začít číst
             </button>
           )}
         </div>
