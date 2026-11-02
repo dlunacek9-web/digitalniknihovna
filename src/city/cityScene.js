@@ -24,7 +24,7 @@ const MAX_YAW = 0.11;
 const MAX_PITCH = 0.07;
 
 const BOOK_SIZE = { w: 0.52, h: 0.74, d: 0.085 };
-const LECTERN = { x: 0, z: -1.6, topY: 1.12, tilt: 0.5 };
+const LECTERN = { x: 0, z: -1.6, topY: 1.12, tilt: 0.7 };
 
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const easeInCubic = (t) => t * t * t;
@@ -308,7 +308,7 @@ export function createCityScene({ canvas, onLook }) {
   collar.position.y = 0.94;
   const topSlab = new THREE.Group();
   const slab = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.07, 0.9, 3, 0.02), woodLight);
-  const lip = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.05, 0.05, 2, 0.015), woodLight);
+  const lip = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.05, 0.05, 2, 0.015), wood);
   lip.position.set(0, 0.04, 0.44);
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.7), mat(0x3a0e16, { roughness: 1 }));
   cloth.rotation.x = -Math.PI / 2;
@@ -331,9 +331,11 @@ export function createCityScene({ canvas, onLook }) {
 
   // pozice knihy ležící na desce
   const slabNormal = new THREE.Vector3(0, Math.cos(LECTERN.tilt), Math.sin(LECTERN.tilt));
-  const slabQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(LECTERN.tilt, 0, 0));
-  const slabUp = new THREE.Vector3(0, Math.sin(LECTERN.tilt), -Math.cos(LECTERN.tilt));
-  const restPos = new THREE.Vector3(LECTERN.x, LECTERN.topY, LECTERN.z).addScaledVector(slabNormal, 0.2).addScaledVector(slabUp, 0.1);
+  // Kniha leží obálkou nahoru: její +z (obálka) musí mířit po normále desky,
+  // proto se otáčí o tilt − 90° (deska sama se otáčí o +tilt).
+  const slabQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(LECTERN.tilt - Math.PI / 2, 0, 0));
+  // půl tloušťky desky + půl tloušťky knihy + drobná mezera, ať skrz desku neprosvítá
+  const restPos = new THREE.Vector3(LECTERN.x, LECTERN.topY, LECTERN.z).addScaledVector(slabNormal, 0.035 + BOOK_SIZE.d / 2 + 0.03);
 
   // ---------- kniha ----------
   const pageMat = mat(0xe9ddbf, { roughness: 0.9 });
@@ -541,7 +543,7 @@ export function createCityScene({ canvas, onLook }) {
     }
     if (current?.landed) {
       const g = current.group;
-      const bob = Math.sin(t * 1.3) * 0.018;
+      const bob = 0.012 + Math.sin(t * 1.3) * 0.01;
       g.position.copy(restPos).addScaledVector(slabNormal, bob);
       g.quaternion.copy(slabQuat).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(t * 0.9) * 0.025, Math.sin(t * 0.7) * 0.04, 0)));
       current.light.intensity = 1.3;
