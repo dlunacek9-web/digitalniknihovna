@@ -335,7 +335,9 @@ export function createCityScene({ canvas, onLook, onIntroDone }) {
   // proto se otáčí o tilt − 90° (deska sama se otáčí o +tilt).
   const slabQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(LECTERN.tilt - Math.PI / 2, 0, 0));
   // půl tloušťky desky + půl tloušťky knihy + drobná mezera, ať skrz desku neprosvítá
-  const restPos = new THREE.Vector3(LECTERN.x, LECTERN.topY, LECTERN.z).addScaledVector(slabNormal, 0.035 + BOOK_SIZE.d / 2 + 0.03);
+  const restPos = new THREE.Vector3(LECTERN.x, LECTERN.topY, LECTERN.z).addScaledVector(slabNormal, 0.035 + BOOK_SIZE.d / 2 + 0.03)
+    // kousek výš po desce, ať spodní hrana leží nad lištou
+    .addScaledVector(new THREE.Vector3(0, Math.sin(LECTERN.tilt), -Math.cos(LECTERN.tilt)), 0.05);
 
   // ---------- kniha ----------
   const pageMat = mat(0xe9ddbf, { roughness: 0.9 });
@@ -557,9 +559,10 @@ export function createCityScene({ canvas, onLook, onIntroDone }) {
     }
     if (current?.landed) {
       const g = current.group;
-      const bob = 0.012 + Math.sin(t * 1.3) * 0.01;
+      // spodní hrana knihy se při houpání nesmí dostat pod lištu pultíku (výška 0.065 nad deskou)
+      const bob = 0.04 + Math.sin(t * 1.3) * 0.01;
       g.position.copy(restPos).addScaledVector(slabNormal, bob);
-      g.quaternion.copy(slabQuat).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(t * 0.9) * 0.025, Math.sin(t * 0.7) * 0.04, 0)));
+      g.quaternion.copy(slabQuat).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(t * 0.9) * 0.02, Math.sin(t * 0.7) * 0.04, 0)));
       current.light.intensity = 1.3;
       current.glow.material.opacity = 0.22;
     }
