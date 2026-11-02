@@ -2,9 +2,9 @@ import { cleanIsbnDigits } from './knihovnyApi';
 import { genreOf } from './genres';
 import { buildDemoLibrary, DEMO_LIBRARY_ID } from './demoLibrary';
 
-const BOOKS_STORAGE_KEY = 'digitalniknihovna.books.v1';
-const LIBRARIES_STORAGE_KEY = 'digitalniknihovna.libraries.v1';
-const ACTIVE_LIB_STORAGE_KEY = 'digitalniknihovna.active_lib.v1';
+const BOOKS_STORAGE_KEY = 'digitalniknihovna.books.v2';
+const LIBRARIES_STORAGE_KEY = 'digitalniknihovna.libraries.v2';
+const ACTIVE_LIB_STORAGE_KEY = 'digitalniknihovna.active_lib.v2';
 
 function readLibraries() {
   try {

@@ -32,7 +32,7 @@ import { genreOf, groupIntoShelves, plural } from './services/genres';
 const BookScanner = lazy(() => import('./components/BookScanner'));
 const CityLibrary = lazy(() => import('./components/CityLibrary'));
 
-const TUTORIAL_KEY = 'digitalniknihovna.tutorial.v1';
+const TUTORIAL_KEY = 'digitalniknihovna.tutorial.v2';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('library'); // 'library' | 'scan' | 'profile'
