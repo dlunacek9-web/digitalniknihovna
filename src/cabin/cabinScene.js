@@ -5,6 +5,7 @@
  *   const scene = createCabinScene({ canvas, labelsEl, onShelfClick });
  *   scene.setBooks(books);        // diff: nové knihy spadnou, prázdné poličky zmizí
  *   scene.focusShelf('Sci-fi');   // kamera přiletí k poličce
+ *   scene.focusPoster(el);        // kamera přiletí k plakátu s profilem; el se přilepí na jeho plochu
  *   scene.resetView();
  *   scene.dispose();
  */
@@ -49,7 +50,7 @@ const easeOutBounce = (t) => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
-export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
+export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick }) {
   // ---------- renderer & scéna ----------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -273,6 +274,51 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
   cat.position.set(-1.7, 0.34, 2.8);
   cat.rotation.y = -0.4;
   cabin.add(cat);
+
+  // ---------- plakát s profilem (na stěně vedle krbu) ----------
+  const POSTER = { w: 1.8, h: 2.3 };
+  const posterTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 360;
+    c.height = 460;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f6efe4';
+    g.fillRect(0, 0, c.width, c.height);
+    g.strokeStyle = '#c85a30';
+    g.lineWidth = 6;
+    g.strokeRect(16, 16, c.width - 32, c.height - 32);
+    g.fillStyle = '#2a2420';
+    g.textAlign = 'center';
+    g.font = '700 64px Georgia, serif';
+    g.fillText('PROFIL', c.width / 2, 120);
+    g.fillStyle = '#c85a30';
+    g.fillRect(c.width / 2 - 50, 144, 100, 6);
+    g.fillStyle = '#7a6b5d';
+    for (let i = 0; i < 6; i++) g.fillRect(56, 200 + i * 38, i % 3 === 2 ? 170 : 248, 10);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  })();
+  const poster = new THREE.Group();
+  const posterBoard = box(POSTER.w + 0.14, POSTER.h + 0.14, 0.06, M.birch, 0.02);
+  const posterPaper = new THREE.Mesh(
+    new THREE.PlaneGeometry(POSTER.w, POSTER.h),
+    new THREE.MeshStandardMaterial({ map: posterTex, roughness: 0.9, emissive: 0x3a3226, emissiveMap: posterTex, emissiveIntensity: 0.5 })
+  );
+  posterPaper.position.z = 0.034;
+  posterPaper.userData.poster = true;
+  posterBoard.userData.poster = true;
+  const pinMat = mat(0xc85a30);
+  for (const sx of [-1, 1]) {
+    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), pinMat);
+    pin.position.set(sx * (POSTER.w / 2 - 0.1), POSTER.h / 2 - 0.1, 0.06);
+    poster.add(pin);
+  }
+  poster.add(posterBoard, posterPaper);
+  poster.position.set(-5.86, 1.6, 4.2);
+  poster.rotation.set(0, Math.PI / 2, 0.015);
+  cabin.add(poster);
 
   world.add(shadowy(cabin));
   fire.castShadow = false;
@@ -513,6 +559,13 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
 
   // ---------- kamera ----------
   let camAnim = null;
+  let posterEl = null;
+  const restoreControls = () => {
+    controls.enabled = true;
+    controls.minDistance = LIMITS.minDistance;
+    controls.minPolarAngle = LIMITS.minPolar;
+    controls.maxPolarAngle = LIMITS.maxPolar;
+  };
   function flyTo(pos, target, dur = 1100) {
     camAnim = { fromP: camera.position.clone(), fromT: controls.target.clone(), pos, target, start: performance.now(), dur };
   }
@@ -528,13 +581,67 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
     // Kamera míří pod poličku, aby zůstala nahoře nad vysunutou 2D poličkou.
     const target = wp.clone().add(new THREE.Vector3(0, -1.6, 0));
     const offset = dir.multiplyScalar(12).add(new THREE.Vector3(0, 7, 0));
+    if (posterEl) {
+      posterEl.classList.remove('is-ready');
+      posterEl = null;
+    }
+    restoreControls();
     controls.autoRotate = false;
     flyTo(target.clone().add(offset), target);
   }
+  // Kamera přiletí těsně před plakát; HTML panel `el` se pak v každém snímku
+  // přilepí na jeho promítnutou plochu.
+  const LIMITS = { minDistance: controls.minDistance, maxPolar: controls.maxPolarAngle, minPolar: controls.minPolarAngle };
+  function focusPoster(el) {
+    clearTimeout(resumeTimer);
+    posterEl = el;
+    posterEl?.classList.remove('is-ready');
+    scene.updateMatrixWorld(true);
+    const center = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    posterPaper.getWorldPosition(center);
+    posterPaper.getWorldQuaternion(q);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    // Mírně z boku a shora, aby kamera nenarazila na poličky v popředí.
+    const dir = n.multiplyScalar(0.95).addScaledVector(right, -0.3).add(new THREE.Vector3(0, 0.15, 0)).normalize();
+    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const sc = world.scale.x;
+    const dist = Math.max((POSTER.h * sc) / (0.86 * 2 * tan), (POSTER.w * sc) / (0.92 * camera.aspect * 2 * tan));
+    controls.autoRotate = false;
+    controls.enabled = false;
+    controls.minDistance = 1;
+    controls.minPolarAngle = 0;
+    controls.maxPolarAngle = Math.PI;
+    flyTo(center.clone().addScaledVector(dir, dist), center, 1300);
+    camAnim.onDone = () => posterEl?.classList.add('is-ready');
+  }
   function resetView() {
+    if (posterEl) {
+      posterEl.classList.remove('is-ready');
+      posterEl = null;
+    }
     flyTo(HOME.pos.clone(), HOME.target.clone());
+    camAnim.onDone = restoreControls;
     clearTimeout(resumeTimer);
     resumeTimer = setTimeout(() => (controls.autoRotate = true), 1200);
+  }
+
+  const corner = new THREE.Vector3();
+  function placePoster() {
+    if (!posterEl || !width) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      corner.set((sx * POSTER.w) / 2, (sy * POSTER.h) / 2, 0);
+      posterPaper.localToWorld(corner).project(camera);
+      const px = (corner.x * 0.5 + 0.5) * width;
+      const py = (-corner.y * 0.5 + 0.5) * height;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px);
+      y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    posterEl.style.transform = `translate(${x0}px, ${y0}px)`;
+    posterEl.style.width = `${x1 - x0}px`;
+    posterEl.style.height = `${y1 - y0}px`;
   }
 
   // ---------- klik na poličku ----------
@@ -551,8 +658,10 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
     ray.setFromCamera(ptr, camera);
     const pickables = [];
     for (const s of shelves.values()) s.group.traverse((o) => o.isMesh && pickables.push(o));
+    pickables.push(posterBoard, posterPaper);
     const hit = ray.intersectObjects(pickables, false)[0];
-    if (hit?.object.userData.genre) onShelfClick?.(hit.object.userData.genre);
+    if (hit?.object.userData.poster) onPosterClick?.();
+    else if (hit?.object.userData.genre) onShelfClick?.(hit.object.userData.genre);
   };
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointerup', onUp);
@@ -586,9 +695,14 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
       const e = 1 - Math.pow(1 - t, 4);
       camera.position.lerpVectors(camAnim.fromP, camAnim.pos, e);
       controls.target.lerpVectors(camAnim.fromT, camAnim.target, e);
-      if (t >= 1) camAnim = null;
+      if (t >= 1) {
+        const done = camAnim.onDone;
+        camAnim = null;
+        done?.();
+      }
     }
     controls.update();
+    placePoster();
 
     // plápolající oheň a dýchající kočka
     const f = 0.85 + Math.sin(now * 0.011) * 0.08 + Math.sin(now * 0.037) * 0.06 + Math.random() * 0.05;
@@ -631,10 +745,11 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick }) {
     bookMaterials.forEach((m) => m.dispose());
     snow.material.dispose();
     snowTexture.dispose();
+    posterTex.dispose();
     renderer.dispose();
     labelsEl.innerHTML = '';
   }
 
-  return { setBooks, focusShelf, resetView, dispose };
+  return { setBooks, focusShelf, focusPoster, resetView, dispose };
 }
 

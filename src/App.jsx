@@ -109,10 +109,11 @@ export default function App() {
       else if (searchOpen) setSearchOpen(false);
       else if (librariesOpen) setLibrariesOpen(false);
       else if (openGenre) setOpenGenre(null);
+      else if (activeTab === 'profile') setActiveTab('library');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedBookId, searchOpen, librariesOpen, openGenre]);
+  }, [selectedBookId, searchOpen, librariesOpen, openGenre, activeTab]);
 
   // Library Handlers
   const switchLibrary = (libId) => {
@@ -274,7 +275,28 @@ export default function App() {
   return (
     <>
       {/* Chata zůstává vykreslená i pod skenerem, ať se po návratu nestaví znovu */}
-      <LibraryCabin key={activeLibraryId || 'none'} books={books} openGenre={openGenre} onShelfClick={setOpenGenre} />
+      <LibraryCabin
+        key={activeLibraryId || 'none'}
+        books={books}
+        openGenre={openGenre}
+        onShelfClick={setOpenGenre}
+        posterOpen={activeTab === 'profile'}
+        onPosterClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
+        posterContent={
+          <>
+            <button type="button" className="page-wood__back" onClick={() => setActiveTab('library')}>
+              <ArrowLeft size={16} /> Zpět do chaty
+            </button>
+            <ProfileView
+              books={allBooks}
+              onDataImported={refresh}
+              showNotification={(message, type) => showNotification(message, '', type)}
+              onReturnBook={handleReturnBook}
+              onOpenBook={openBookAnywhere}
+            />
+          </>
+        }
+      />
 
       {activeTab === 'library' && (
         <>
@@ -341,23 +363,6 @@ export default function App() {
                 />
               </Suspense>
             )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'profile' && (
-        <div className="page-wood wood-wall fixed inset-0 z-10 overflow-y-auto">
-          <div className="page-wood__inner page-wood__inner--wide">
-            <button type="button" className="page-wood__back" onClick={() => setActiveTab('library')}>
-              <ArrowLeft size={16} /> Zpět do chaty
-            </button>
-            <ProfileView
-              books={allBooks}
-              onDataImported={refresh}
-              showNotification={(message, type) => showNotification(message, '', type)}
-              onReturnBook={handleReturnBook}
-              onOpenBook={openBookAnywhere}
-            />
           </div>
         </div>
       )}
