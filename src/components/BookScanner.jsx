@@ -125,6 +125,8 @@ export default function BookScanner({
   libraries = [],
   selectedLibraryId = '',
   onSelectLibrary,
+  keepScanning = false,
+  onKeepScanningChange,
   onIsbnDetected,
   onClose
 }) {
@@ -345,6 +347,16 @@ export default function BookScanner({
             </option>
           ))}
         </select>
+        <label className="mt-2.5 flex items-center space-x-2 text-xs font-semibold text-stone-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={keepScanning}
+            onChange={(e) => onKeepScanningChange && onKeepScanningChange(e.target.checked)}
+            className="w-4 h-4 cursor-pointer"
+            style={{ minHeight: 0 }}
+          />
+          <span>Zůstat ve skeneru po uložení knihy</span>
+        </label>
       </div>
 
       {/* Camera Preview Area */}

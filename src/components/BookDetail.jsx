@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { HandHelping, Trash2, Undo2, X } from 'lucide-react';
+import { HandHelping, Pencil, Trash2, Undo2, X } from 'lucide-react';
 import { bookColor, genreOf, isLightColor } from '../services/genres';
+import GenreField from './GenreField';
 import { OVERDUE_DAYS, daysSince, formatDays, formatLoanDate, todayIsoDate } from '../services/bookLoans';
 
 const STATUSES = [
@@ -10,18 +11,21 @@ const STATUSES = [
 ];
 
 /** Detail knihy: obálka se natočí z hřbetu, pod ní stav čtení. */
-export default function BookDetail({ book, shelfCount, onClose, onStatusChange, onDelete, onLend, onReturn }) {
+export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveToShelf, onClose, onStatusChange, onDelete, onLend, onReturn }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [showLendForm, setShowLendForm] = useState(false);
   const [borrower, setBorrower] = useState('');
   const [lentAt, setLentAt] = useState(todayIsoDate());
+  const [moving, setMoving] = useState(false);
+  const [shelfDraft, setShelfDraft] = useState('');
 
   useEffect(() => {
     setConfirmDelete(false);
     setCoverFailed(false);
     setShowLendForm(false);
     setBorrower('');
+    setMoving(false);
   }, [book?.id]);
 
   if (!book) return null;
@@ -66,6 +70,33 @@ export default function BookDetail({ book, shelfCount, onClose, onStatusChange, 
 
         <div className="book-detail__info">
           <small className="eyebrow">{genreOf(book)}</small>
+          {moving ? (
+            <form
+              className="shelf-move"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onMoveToShelf(book, shelfDraft);
+                setMoving(false);
+              }}
+            >
+              <GenreField value={shelfDraft} onChange={setShelfDraft} existingGenres={shelfNames} />
+              <div className="shelf-move__actions">
+                <button type="submit" disabled={!shelfDraft.trim() || shelfDraft.trim() === genreOf(book)}>Přesunout</button>
+                <button type="button" className="text-btn" onClick={() => setMoving(false)}>Zrušit</button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                setShelfDraft(genreOf(book));
+                setMoving(true);
+              }}
+            >
+              <Pencil size={14} /> Změnit poličku
+            </button>
+          )}
           <h2>{book.title}</h2>
           <p className="book-detail__by">{book.authors}</p>
 

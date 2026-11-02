@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Check, Pencil, X } from 'lucide-react';
 import { bookColor, isLightColor, plural } from '../services/genres';
 
 function lastName(authors) {
@@ -40,12 +40,15 @@ function ShelfBook({ book, index, total, onOpen }) {
 }
 
 /** Polička zblízka: dřevěná stěna, knihy ve 3D, mosazná cedulka. */
-export default function ShelfSheet({ genre: openGenre, books: openBooks, onClose, onOpenBook }) {
+export default function ShelfSheet({ genre: openGenre, books: openBooks, onClose, onOpenBook, onRename }) {
   const open = Boolean(openGenre);
   // Při zavírání držíme poslední obsah, aby polička odjela i s knihami.
   const last = useRef({ genre: null, books: [] });
   if (open) last.current = { genre: openGenre, books: openBooks };
   const { genre, books } = last.current;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  useEffect(() => setEditing(false), [openGenre]);
   const read = books.filter((b) => b.status === 'read').length;
 
   return (
@@ -55,7 +58,45 @@ export default function ShelfSheet({ genre: openGenre, books: openBooks, onClose
           <header className="shelf-sheet__head">
             <div>
               <small className="eyebrow">Polička</small>
-              <h2>{genre}</h2>
+              {editing ? (
+                <form
+                  className="shelf-rename"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onRename(genre, draft);
+                    setEditing(false);
+                  }}
+                >
+                  <input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    aria-label="Nový název poličky"
+                    autoFocus
+                    autoComplete="off"
+                  />
+                  <button type="submit" className="round-btn" aria-label="Uložit název" disabled={!draft.trim()}>
+                    <Check size={18} />
+                  </button>
+                  <button type="button" className="round-btn" aria-label="Zrušit" onClick={() => setEditing(false)}>
+                    <X size={18} />
+                  </button>
+                </form>
+              ) : (
+                <h2>
+                  {genre}
+                  <button
+                    type="button"
+                    className="shelf-rename__pencil"
+                    aria-label="Přejmenovat poličku"
+                    onClick={() => {
+                      setDraft(genre);
+                      setEditing(true);
+                    }}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                </h2>
+              )}
             </div>
             <p className="shelf-sheet__meta">
               {books.length} {plural(books.length, 'kniha', 'knihy', 'knih')} · {read} přečteno
