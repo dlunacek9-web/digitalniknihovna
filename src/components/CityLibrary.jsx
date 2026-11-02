@@ -10,7 +10,7 @@ import { bookColor, isLightColor } from '../services/genres';
  *
  * phase: 'search' (otevřená kniha s hledáním) → 'flying' → 'lectern' → 'leaving' → 'search'
  */
-export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen }) {
+export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen, onProgress }) {
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
   const sceneRef = useRef(null);
@@ -24,6 +24,10 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
   const [selected, setSelected] = useState(null);
   const [phase, setPhase] = useState('intro'); // intro: kamera se snáší chodbou
   const [closing, setClosing] = useState(false);
+
+  useEffect(() => {
+    onProgress?.({ phase, queryLen: query.trim().length });
+  }, [phase, query, onProgress]);
 
   useEffect(() => {
     const scene = createCityScene({

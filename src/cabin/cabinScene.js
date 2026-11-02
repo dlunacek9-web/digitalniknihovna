@@ -54,7 +54,7 @@ const easeOutBounce = (t) => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
-export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick }) {
+export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick, onCatPet }) {
   // ---------- renderer & scéna ----------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -333,6 +333,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   function petCat(now) {
     if (catAnim) return;
     catAnim = { start: now, purred: false };
+    onCatPet?.();
   }
   // časová osa (s): 0–0.9 vstává, 0.9–2.4 protažení, 2.4–6.4 vrní, 6.4–7.6 líhá
   function updateCat(now) {
@@ -889,6 +890,21 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     labelsEl.innerHTML = '';
   }
 
-  return { setBooks, focusShelf, focusPoster, flyToCity, resetView, dispose };
+  // Poloha kočky / nástěnky na obrazovce (px) pro bublinky tutoriálu.
+  const anchorPoint = new THREE.Vector3();
+  function screenAnchor(name) {
+    const target = name === 'cat' ? cat : poster;
+    target.getWorldPosition(anchorPoint);
+    if (name === 'cat') anchorPoint.y += 0.3;
+    anchorPoint.project(camera);
+    if (anchorPoint.z > 1) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((anchorPoint.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - anchorPoint.y) / 2) * rect.height
+    };
+  }
+
+  return { screenAnchor, setBooks, focusShelf, focusPoster, flyToCity, resetView, dispose };
 }
 

@@ -1089,3 +1089,50 @@ button.chip-glass { cursor: pointer; font-family: var(--sans); }
   .tome__filter span { width: auto; }
   .city-card { right: 16px; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: auto; }
 }
+
+/* ---------- tutorial ---------- */
+.tour { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.tour-ring {
+  position: fixed;
+  border-radius: 18px;
+  border: 2px solid var(--lamp);
+  box-shadow: 0 0 0 4px rgba(255, 201, 138, 0.25), 0 0 28px rgba(255, 201, 138, 0.55);
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+.tour-ring.is-round { border-radius: 50%; }
+@keyframes tour-pulse {
+  50% { box-shadow: 0 0 0 10px rgba(255, 201, 138, 0.08), 0 0 36px rgba(255, 201, 138, 0.75); }
+}
+.tour-bubble {
+  position: fixed;
+  pointer-events: auto;
+  padding: 14px 40px 14px 16px;
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.55);
+  animation: tour-in 0.4s var(--ease-out) both;
+}
+.tour-bubble.is-final { left: 50%; top: 50%; width: min(340px, calc(100% - 32px)); transform: translate(-50%, -50%); text-align: center; padding: 22px 22px 20px; animation-name: tour-in-center; }
+.tour-bubble small { font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ember-deep); }
+.tour-bubble h4 { margin: 2px 0 4px; font: 500 18px var(--serif); }
+.tour-bubble p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.tour-bubble__arrow { position: absolute; width: 14px; height: 14px; background: var(--paper); transform: translateX(-50%) rotate(45deg); }
+.tour-bubble.is-below .tour-bubble__arrow { top: -6px; }
+.tour-bubble.is-above .tour-bubble__arrow { bottom: -6px; }
+.tour-bubble__close {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; background: rgba(42, 36, 32, 0.08); color: var(--ink);
+}
+.tour-bubble__close:hover { background: rgba(42, 36, 32, 0.16); }
+.tour-bubble__done { margin: 14px auto 0; padding: 0 28px; }
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes tour-in-center { from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); } }
+.tour-confirm { position: fixed; inset: 0; pointer-events: auto; display: grid; place-items: center; background: rgba(10, 16, 24, 0.6); backdrop-filter: blur(4px); padding: 16px; }
+.tour-confirm__card { width: min(320px, 100%); padding: 22px; border-radius: 20px; background: var(--paper); color: var(--ink); text-align: center; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6); }
+.tour-confirm__card h4 { margin: 0 0 4px; font: 500 20px var(--serif); }
+.tour-confirm__card p { margin: 0 0 16px; font-size: 13.5px; color: var(--ink-soft); }
+.tour-confirm__card div { display: flex; gap: 10px; }
+.tour-confirm__card button { flex: 1; height: 44px; border: 0; border-radius: 999px; font: 600 14px var(--sans); cursor: pointer; }
+.tour-confirm__stay { background: linear-gradient(180deg, #ffb98f, var(--ember)); color: #2a160c; }
+.tour-confirm__quit { background: rgba(42, 36, 32, 0.1); color: var(--ink); }
