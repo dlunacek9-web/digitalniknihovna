@@ -16,7 +16,8 @@ export const REQUESTED_FIELDS = [
   'isbns',
   'issns',
   'cnb',
-  'formats'
+  'formats',
+  'subjects'
 ];
 
 /**
@@ -153,6 +154,24 @@ export function parsePageCount(physicalDescriptions) {
 }
 
 /**
+ * Picks a genre-like subject heading from Knihovny.cz `subjects`.
+ * Skips person headings (e.g. ["Rowling, J. K.,", "1965-"]).
+ */
+export function parseGenre(subjects) {
+  if (!Array.isArray(subjects)) return null;
+
+  for (const subject of subjects) {
+    const parts = Array.isArray(subject) ? subject : [subject];
+    const heading = cleanCatalogText(String(parts[0] || ''));
+    const isPerson = parts.some((part) => /^\d{3,4}-/.test(String(part).trim())) || /,\s*$/.test(String(parts[0] || ''));
+    if (heading && !isPerson) {
+      return heading.charAt(0).toLocaleUpperCase('cs') + heading.slice(1);
+    }
+  }
+  return null;
+}
+
+/**
  * Normalizes a single raw record from Knihovny.cz API into application book object structure.
  */
 export function normalizeRecord(record) {
@@ -184,6 +203,7 @@ export function normalizeRecord(record) {
     publisher,
     publication_date: publicationDate,
     page_count: pageCount,
+    genre: parseGenre(record.subjects),
     description: '',
     cover_url: null,
     cnb: record.cnb ?? null,
@@ -306,6 +326,7 @@ async function findInGoogleBooks(isbn13) {
     publisher: info.publisher || '',
     publication_date: parseYear(info.publishedDate),
     page_count: info.pageCount || null,
+    genre: Array.isArray(info.categories) && info.categories.length ? info.categories[0] : null,
     description: info.description || '',
     cover_url: thumb ? thumb.replace(/^http:/, 'https:') : null,
     cnb: null,
@@ -331,6 +352,7 @@ async function findInOpenLibrary(isbn13) {
     publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : '',
     publication_date: year,
     page_count: doc.number_of_pages_median || null,
+    genre: null,
     description: '',
     cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : null,
     cnb: null,

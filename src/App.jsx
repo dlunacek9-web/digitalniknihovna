@@ -251,7 +251,7 @@ export default function App() {
   };
 
   const currentLibraryObject = libraries.find((l) => l.id === selectedLibraryId);
-  const totalPagesSum = listBooks(null).reduce((sum, b) => sum + (b.page_count || 0), 0);
+  const allBooks = activeTab === 'profile' ? listBooks(null) : [];
 
   return (
     <div className="app-shell min-h-screen bg-stone-50 text-stone-900 pb-28">
@@ -496,8 +496,7 @@ export default function App() {
         {/* Tab 3: Profile View */}
         {activeTab === 'profile' && (
           <ProfileView
-            totalBooks={allBooksCount}
-            totalPages={totalPagesSum}
+            books={allBooks}
             onDataImported={() => {
               refreshLibraries();
               if (selectedLibraryId) fetchBooksForLibrary(selectedLibraryId, searchQuery);

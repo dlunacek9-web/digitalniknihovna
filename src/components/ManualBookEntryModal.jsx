@@ -6,6 +6,7 @@ export default function ManualBookEntryModal({ initialIsbn, onConfirm, onCancel 
   const [title, setTitle] = useState('');
   const [authors, setAuthors] = useState('');
   const [publisher, setPublisher] = useState('');
+  const [genre, setGenre] = useState('');
   const [publicationDate, setPublicationDate] = useState('');
   const [pageCount, setPageCount] = useState('');
   const [description, setDescription] = useState('');
@@ -24,6 +25,7 @@ export default function ManualBookEntryModal({ initialIsbn, onConfirm, onCancel 
       title: title.trim(),
       authors: authors.trim() || 'Neznámý autor',
       publisher: publisher.trim() || null,
+      genre: genre.trim() || null,
       publication_date: publicationDate.trim() || null,
       page_count: pageCount ? parseInt(pageCount, 10) : null,
       description: description.trim() || null,
@@ -104,6 +106,19 @@ export default function ManualBookEntryModal({ initialIsbn, onConfirm, onCancel 
               value={authors}
               onChange={(e) => setAuthors(e.target.value)}
               placeholder="Např. Božena Němcová"
+              className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
+              Žánr
+            </label>
+            <input
+              type="text"
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              placeholder="Např. Fantasy"
               className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900"
             />
           </div>
