@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import { User, BookOpen, Layers, Sparkles, Download, Upload, FileSpreadsheet, Bookmark, Award, ShieldCheck } from 'lucide-react';
+import { User, Sparkles, Download, Upload, FileSpreadsheet, Bookmark, Award, ShieldCheck } from 'lucide-react';
+import LibraryStats from './LibraryStats';
 import { exportLibraryData, importLibraryData } from '../services/libraryStore';
 import { buildJsonBackup, buildCsv, parseJsonBackup, backupFileName, downloadFile } from '../services/libraryBackup';
 
-export default function ProfileView({ totalBooks, totalPages, onDataImported, showNotification }) {
+export default function ProfileView({ books, onDataImported, showNotification }) {
   const fileInputRef = useRef(null);
 
   const handleExportJson = () => {
@@ -53,29 +54,7 @@ export default function ProfileView({ totalBooks, totalPages, onDataImported, sh
         </div>
       </div>
 
-      {/* Reading Statistics */}
-      <div>
-        <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2.5 px-1">
-          Statistiky čtení
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-sm flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-xl bg-burgundy-50 text-burgundy-900 flex items-center justify-center mb-2">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <span className="text-2xl font-extrabold text-stone-900">{totalBooks}</span>
-            <span className="text-stone-500 text-xs font-medium">Knih v knihovně</span>
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-sm flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center mb-2">
-              <Layers className="w-5 h-5" />
-            </div>
-            <span className="text-2xl font-extrabold text-stone-900">{totalPages}</span>
-            <span className="text-stone-500 text-xs font-medium">Celkem stran</span>
-          </div>
-        </div>
-      </div>
+      <LibraryStats books={books} />
 
       {/* Backup: export & import */}
       <div>

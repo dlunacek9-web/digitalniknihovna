@@ -8,6 +8,7 @@ import {
   parseAuthors,
   parsePageCount,
   normalizeRecord,
+  parseGenre,
   searchKnihovnyApi,
   lookupByIsbn,
   REQUESTED_FIELDS,
@@ -104,6 +105,7 @@ describe('knihovnyApi service', () => {
         publisher: 'Argo',
         publication_date: '2011',
         page_count: 218,
+        genre: null,
         description: '',
         cover_url: null,
         cnb: 'cnb002163342',
@@ -187,5 +189,16 @@ describe('knihovnyApi service', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('nebyla v katalogu Knihovny.cz ani v dalších databázích nalezena');
     });
+  });
+});
+
+describe('parseGenre', () => {
+  it('skips person headings and capitalizes the first topic', () => {
+    expect(parseGenre([['Rowling, J. K.,', '1965-'], ['anglická literatura', '21. století, počátek']])).toBe('Anglická literatura');
+  });
+
+  it('returns null when no subjects are available', () => {
+    expect(parseGenre(undefined)).toBeNull();
+    expect(parseGenre([])).toBeNull();
   });
 });
