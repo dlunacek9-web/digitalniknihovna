@@ -106,6 +106,7 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     blanket: mat(0xe9dcc3),
     shade: mat(0xffe8c7, { emissive: 0xffc98a, emissiveIntensity: 1.4 }),
     black: mat(0x2a2420),
+    oakFrame: mat(0x7c5636),
     cat: mat(0x3a3532)
   };
   const bookMaterials = new Map();
@@ -275,49 +276,74 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
   cat.rotation.y = -0.4;
   cabin.add(cat);
 
-  // ---------- plakát s profilem (na stěně vedle krbu) ----------
+  // ---------- nástěnka s profilem (na stěně vedle krbu) ----------
+  // POSTER = korková plocha; HTML panel se přilepí přesně na ni.
   const POSTER = { w: 1.8, h: 2.3 };
+  const FRAME = 0.1;
   const posterTex = (() => {
+    const W = 360;
+    const H = 460;
     const c = document.createElement('canvas');
-    c.width = 360;
-    c.height = 460;
+    c.width = W;
+    c.height = H;
     const g = c.getContext('2d');
-    g.fillStyle = '#f6efe4';
-    g.fillRect(0, 0, c.width, c.height);
-    g.strokeStyle = '#c85a30';
-    g.lineWidth = 6;
-    g.strokeRect(16, 16, c.width - 32, c.height - 32);
-    g.fillStyle = '#2a2420';
-    g.textAlign = 'center';
-    g.font = '700 64px Georgia, serif';
-    g.fillText('PROFIL', c.width / 2, 120);
-    g.fillStyle = '#c85a30';
-    g.fillRect(c.width / 2 - 50, 144, 100, 6);
-    g.fillStyle = '#7a6b5d';
-    for (let i = 0; i < 6; i++) g.fillRect(56, 200 + i * 38, i % 3 === 2 ? 170 : 248, 10);
+    g.fillStyle = '#b98a5a';
+    g.fillRect(0, 0, W, H);
+    let sd = 11;
+    const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646;
+    for (let i = 0; i < 1800; i++) {
+      g.fillStyle = r() > 0.5 ? 'rgba(90,55,25,0.22)' : 'rgba(240,205,150,0.25)';
+      g.beginPath();
+      g.arc(r() * W, r() * H, 0.8 + r() * 2.2, 0, 7);
+      g.fill();
+    }
+    const note = (x, y, w, h, rot, lines, title) => {
+      g.save();
+      g.translate(x + w / 2, y + h / 2);
+      g.rotate(rot);
+      g.shadowColor = 'rgba(40,20,5,0.4)';
+      g.shadowBlur = 8;
+      g.shadowOffsetY = 3;
+      g.fillStyle = '#fffbee';
+      g.fillRect(-w / 2, -h / 2, w, h);
+      g.shadowColor = 'transparent';
+      g.fillStyle = '#4a4640';
+      g.font = '700 30px Caveat, cursive';
+      g.textAlign = 'left';
+      if (title) g.fillText(title, -w / 2 + 12, -h / 2 + 34);
+      g.fillStyle = 'rgba(74,70,64,0.55)';
+      for (let i = 0; i < lines; i++) g.fillRect(-w / 2 + 12, -h / 2 + (title ? 54 : 22) + i * 20, w - 24 - (i % 2) * 40, 3);
+      g.fillStyle = '#d4503a';
+      g.beginPath();
+      g.arc(0, -h / 2 + 8, 7, 0, 7);
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.5)';
+      g.beginPath();
+      g.arc(-2, -h / 2 + 6, 2.2, 0, 7);
+      g.fill();
+      g.restore();
+    };
+    note(34, 34, 292, 100, -0.03, 2, 'Profil');
+    note(30, 170, 140, 110, 0.04, 3, '');
+    note(190, 160, 140, 130, -0.05, 4, '');
+    note(40, 320, 280, 100, 0.02, 3, '');
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;
     return t;
   })();
   const poster = new THREE.Group();
-  const posterBoard = box(POSTER.w + 0.14, POSTER.h + 0.14, 0.06, M.birch, 0.02);
+  const posterBoard = box(POSTER.w + FRAME * 2, POSTER.h + FRAME * 2, 0.08, M.oakFrame, 0.03);
   const posterPaper = new THREE.Mesh(
     new THREE.PlaneGeometry(POSTER.w, POSTER.h),
-    new THREE.MeshStandardMaterial({ map: posterTex, roughness: 0.9, emissive: 0x3a3226, emissiveMap: posterTex, emissiveIntensity: 0.5 })
+    new THREE.MeshStandardMaterial({ map: posterTex, roughness: 1, emissive: 0x3a2a18, emissiveMap: posterTex, emissiveIntensity: 0.45 })
   );
-  posterPaper.position.z = 0.034;
+  posterPaper.position.z = 0.042;
   posterPaper.userData.poster = true;
   posterBoard.userData.poster = true;
-  const pinMat = mat(0xc85a30);
-  for (const sx of [-1, 1]) {
-    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), pinMat);
-    pin.position.set(sx * (POSTER.w / 2 - 0.1), POSTER.h / 2 - 0.1, 0.06);
-    poster.add(pin);
-  }
   poster.add(posterBoard, posterPaper);
-  poster.position.set(-5.86, 1.6, 4.2);
-  poster.rotation.set(0, Math.PI / 2, 0.015);
+  poster.position.set(-5.84, 1.6, 4.15);
+  poster.rotation.y = Math.PI / 2;
   cabin.add(poster);
 
   world.add(shadowy(cabin));
@@ -602,12 +628,11 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
     posterPaper.getWorldPosition(center);
     posterPaper.getWorldQuaternion(q);
     const n = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    // Mírně z boku a shora, aby kamera nenarazila na poličky v popředí.
-    const dir = n.multiplyScalar(0.95).addScaledVector(right, -0.3).add(new THREE.Vector3(0, 0.15, 0)).normalize();
+    // Kolmo na plochu, aby se HTML panel přesně kryl s korkem.
+    const dir = n.normalize();
     const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const sc = world.scale.x;
-    const dist = Math.max((POSTER.h * sc) / (0.86 * 2 * tan), (POSTER.w * sc) / (0.92 * camera.aspect * 2 * tan));
+    const dist = Math.max(((POSTER.h + 0.3) * sc) / (0.9 * 2 * tan), ((POSTER.w + 0.3) * sc) / (0.94 * camera.aspect * 2 * tan));
     controls.autoRotate = false;
     controls.enabled = false;
     controls.minDistance = 1;
