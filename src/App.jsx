@@ -29,6 +29,7 @@ import { genreOf, groupIntoShelves, plural } from './services/genres';
 
 // Skener (ZXing WASM) se načte až při prvním otevření.
 const BookScanner = lazy(() => import('./components/BookScanner'));
+const CityLibrary = lazy(() => import('./components/CityLibrary'));
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('library'); // 'library' | 'scan' | 'profile'
@@ -46,6 +47,8 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [librariesOpen, setLibrariesOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [cityAddedSignal, setCityAddedSignal] = useState(0);
 
   // Scanner & manual entry state
   const [scannedPreviewBook, setScannedPreviewBook] = useState(null);
@@ -260,7 +263,8 @@ export default function App() {
 
       setScannedPreviewBook(null);
       setManualEntryIsbn(null);
-      if (!stayInScanner) {
+      // Z městské knihovny se nikam neodchází, kniha jen odletí domů.
+      if (!stayInScanner && !cityOpen) {
         setOpenGenre(null);
         setActiveTab('library');
         if (savedLibId) switchLibrary(savedLibId);
@@ -273,6 +277,7 @@ export default function App() {
       }
 
       if (result.success) {
+        if (cityOpen) setCityAddedSignal((n) => n + 1);
         showNotification(
           isNewShelf ? `Nová polička · ${genre}` : result.book.title,
           isNewShelf ? `Založena automaticky pro „${result.book.title}“` : `Přidáno na poličku ${genre}`
@@ -310,6 +315,14 @@ export default function App() {
     }
   };
 
+  // Kniha z městské knihovny projde stejným náhledem jako naskenovaná.
+  const handleCityAddBook = (book) => {
+    const isbn = book.isbn ? toIsbn13(book.isbn) : '';
+    const alreadyInLibrary = Boolean(isbn) && listBooks(scanTargetId).some((b) => toIsbn13(b.isbn) === isbn);
+    setScannedPreviewBook({ ...book, alreadyInLibrary });
+    setIsDuplicateAlert(alreadyInLibrary);
+  };
+
   const openBookAnywhere = (book) => {
     const libId = book.library_id || 'lib_default_1';
     if (libId !== activeLibraryId) switchLibrary(libId);
@@ -329,6 +342,7 @@ export default function App() {
         openGenre={openGenre}
         onShelfClick={setOpenGenre}
         posterOpen={activeTab === 'profile'}
+        onCityClick={() => activeTab === 'library' && !openGenre && setCityOpen(true)}
         onPosterClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
         posterContent={
           <>
@@ -427,6 +441,17 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {cityOpen && (
+        <Suspense fallback={null}>
+          <CityLibrary
+            onClose={() => setCityOpen(false)}
+            onAddBook={handleCityAddBook}
+            addedSignal={cityAddedSignal}
+            modalOpen={Boolean(scannedPreviewBook)}
+          />
+        </Suspense>
       )}
 
       {librariesOpen && (

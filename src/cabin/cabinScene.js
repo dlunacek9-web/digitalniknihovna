@@ -34,6 +34,9 @@ const SLOTS = [
   { x: 5.4, z: 4.2, ry: -Math.PI / 2 }
 ];
 
+// Otevřená pravá strana chaty, mezi zadní řadou a poličkami u okraje.
+const CITY_ANCHOR = new THREE.Vector3(6.4, 2.3, -2.4);
+
 const HOME = { pos: new THREE.Vector3(17, 16, 20), target: new THREE.Vector3(0, 0.6, 0) };
 
 // ---------- easing ----------
@@ -51,7 +54,7 @@ const easeOutBounce = (t) => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
-export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick }) {
+export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick }) {
   // ---------- renderer & scéna ----------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -833,6 +836,15 @@ export function createCabinScene({ canvas, labelsEl, onShelfClick, onPosterClick
       if (p[i * 3 + 1] < -1) p[i * 3 + 1] = 18;
     }
     snowGeo.attributes.position.needsUpdate = true;
+
+    // bublina do městské knihovny, vznášející se na otevřené straně chaty
+    if (cityEl) {
+      v.copy(CITY_ANCHOR);
+      v.y += Math.sin(now * 0.0015) * 0.12;
+      v.applyMatrix4(world.matrixWorld).project(camera);
+      cityEl.style.transform = `translate(${(v.x * 0.5 + 0.5) * width}px, ${(-v.y * 0.5 + 0.5) * height}px) translate(-50%, -50%)`;
+      cityEl.classList.toggle('is-visible', v.z < 1 && world.scale.x > 0.95);
+    }
 
     // štítky poliček
     for (const s of shelves.values()) {
