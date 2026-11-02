@@ -185,7 +185,7 @@ describe('knihovnyApi service', () => {
       // Query for an ISBN that does not match the sample response's 9788025703670
       const result = await lookupByIsbn('978-80-000-0000-0');
       expect(result.success).toBe(false);
-      expect(result.error).toContain('nebyla v katalogu Knihovny.cz nalezena');
+      expect(result.error).toContain('nebyla v katalogu Knihovny.cz ani v dalších databázích nalezena');
     });
   });
 });
