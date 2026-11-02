@@ -1,5 +1,6 @@
 import { cleanIsbnDigits } from './knihovnyApi';
 import { genreOf } from './genres';
+import { buildDemoLibrary, DEMO_LIBRARY_ID } from './demoLibrary';
 
 const BOOKS_STORAGE_KEY = 'digitalniknihovna.books.v1';
 const LIBRARIES_STORAGE_KEY = 'digitalniknihovna.libraries.v1';
@@ -13,6 +14,20 @@ function readLibraries() {
     }
   } catch (err) {
     console.error('Error reading libraries from localStorage:', err);
+  }
+
+  // První spuštění (žádná data): chata s ukázkovými knihami + prázdná vlastní knihovna.
+  if (readBooksRaw().length === 0) {
+    const demo = buildDemoLibrary();
+    const ownLib = {
+      id: 'lib_default_1',
+      name: 'Knihovna 1',
+      created_at: new Date().toISOString()
+    };
+    writeLibraries([demo.library, ownLib]);
+    writeBooksRaw(demo.books);
+    setActiveLibraryId(DEMO_LIBRARY_ID);
+    return [demo.library, ownLib];
   }
 
   // Initialize default library if none exists

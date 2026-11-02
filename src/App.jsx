@@ -36,7 +36,9 @@ export default function App() {
   // Každá knihovna je vlastní chata; zobrazuje se ta aktivní.
   const [libraries, setLibraries] = useState(() => getLibraries());
   const [activeLibraryId, setActiveLibraryIdState] = useState(() => getActiveLibraryId());
-  const [targetScanLibraryId, setTargetScanLibraryId] = useState(() => getActiveLibraryId() || '');
+  const [targetScanLibraryId, setTargetScanLibraryId] = useState(
+    () => getLibraries().find((lib) => !lib.demo)?.id || getActiveLibraryId() || ''
+  );
   const [allBooks, setAllBooks] = useState(() => listBooks(null));
 
   const [openGenre, setOpenGenre] = useState(null);
