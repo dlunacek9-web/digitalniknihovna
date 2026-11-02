@@ -21,7 +21,9 @@ import {
   setActiveLibraryId,
   lendBook,
   returnBook,
-  updateBook
+  updateBook,
+  moveBookToShelf,
+  renameShelf
 } from './services/libraryStore';
 import { genreOf, groupIntoShelves, plural } from './services/genres';
 
@@ -48,6 +50,13 @@ export default function App() {
   const [manualEntryIsbn, setManualEntryIsbn] = useState(null);
   const [isDuplicateAlert, setIsDuplicateAlert] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [keepScanning, setKeepScanning] = useState(() => {
+    try {
+      return localStorage.getItem('digitalniknihovna.keep_scanning.v1') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   // GitHub Pages is static, so the personal library is persisted locally in this browser.
   const refresh = () => {
@@ -173,6 +182,39 @@ export default function App() {
     }
   };
 
+  const handleKeepScanningChange = (value) => {
+    setKeepScanning(value);
+    try {
+      localStorage.setItem('digitalniknihovna.keep_scanning.v1', value ? '1' : '0');
+    } catch {
+      // volba se jen nezapamatuje
+    }
+  };
+
+  const handleMoveBook = (book, genre) => {
+    const name = genre.trim();
+    if (!name || name === genreOf(book)) return;
+    if (!moveBookToShelf(book.id, name)) {
+      showNotification('Knihu se nepodařilo přesunout', '', 'error');
+      return;
+    }
+    if (openShelfBooks.filter((b) => b.id !== book.id).length === 0) setOpenGenre(name);
+    refresh();
+    showNotification(`Přesunuto na poličku ${name}`, book.title);
+  };
+
+  const handleRenameShelf = (oldGenre, newGenre) => {
+    const name = newGenre.trim();
+    if (!name || name === oldGenre) return;
+    if (!renameShelf(activeLibraryId, oldGenre, name)) {
+      showNotification('Poličku se nepodařilo přejmenovat', '', 'error');
+      return;
+    }
+    setOpenGenre(name);
+    refresh();
+    showNotification('Polička přejmenována', name);
+  };
+
   const handleStatusChange = (book, status) => {
     try {
       updateBook(book.id, { status });
@@ -212,11 +254,15 @@ export default function App() {
       const result = addBook({ ...bookData, genre }, targetLibId);
       const savedLibId = result.book?.library_id || targetLibId;
 
+      const stayInScanner = keepScanning && activeTab === 'scan';
+
       setScannedPreviewBook(null);
       setManualEntryIsbn(null);
-      setOpenGenre(null);
-      setActiveTab('library');
-      if (savedLibId) switchLibrary(savedLibId);
+      if (!stayInScanner) {
+        setOpenGenre(null);
+        setActiveTab('library');
+        if (savedLibId) switchLibrary(savedLibId);
+      }
       refresh();
 
       if (result.duplicate) {
@@ -341,6 +387,7 @@ export default function App() {
             books={openShelfBooks}
             onClose={closeShelf}
             onOpenBook={(book) => setSelectedBookId(book.id)}
+            onRename={handleRenameShelf}
           />
         </>
       )}
@@ -355,6 +402,8 @@ export default function App() {
                   libraries={libraries}
                   selectedLibraryId={scanTargetId}
                   onSelectLibrary={handleSelectTargetScanLibrary}
+                  keepScanning={keepScanning}
+                  onKeepScanningChange={handleKeepScanningChange}
                   onIsbnDetected={handleIsbnDetected}
                   onClose={() => {
                     setActiveTab('library');
@@ -405,6 +454,8 @@ export default function App() {
             )?.books.length ?? 1
           }
           onClose={() => setSelectedBookId(null)}
+          shelfNames={shelves.map((s) => s.genre)}
+          onMoveToShelf={handleMoveBook}
           onStatusChange={handleStatusChange}
           onDelete={handleDeleteBook}
           onLend={handleLendBook}

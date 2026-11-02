@@ -832,3 +832,24 @@ button.chip-glass { cursor: pointer; font-family: var(--sans); }
   box-shadow: 0 0 0 4px rgba(200, 90, 48, 0.55) inset;
 }
 .cabin-poster.is-ready .cabin-poster__paper { opacity: 1; pointer-events: auto; }
+
+/* Přejmenování poličky a přesun knihy */
+.shelf-rename__pencil {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin-left: 10px; vertical-align: middle;
+  border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.55);
+  color: inherit; cursor: pointer;
+}
+.shelf-rename__pencil:hover { background: #fff; }
+.shelf-rename { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.shelf-rename input {
+  min-width: 0; width: 220px; max-width: 50vw; padding: 8px 12px;
+  border: 1px solid var(--line, #d8cfbf); border-radius: 10px; font: inherit; font-size: 18px;
+}
+.shelf-move { display: grid; gap: 10px; margin: 6px 0 10px; }
+.shelf-move__actions { display: flex; align-items: center; gap: 10px; }
+.shelf-move__actions button[type='submit'] {
+  padding: 8px 16px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--ink); color: var(--paper); font: inherit; font-weight: 600;
+}
+.shelf-move__actions button[type='submit']:disabled { opacity: 0.4; cursor: default; }

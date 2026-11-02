@@ -273,6 +273,27 @@ export function updateBook(id, changes) {
   return updated;
 }
 
+// Přesune knihu na jinou poličku (žánr). Ruční volba se už nepřetřiďuje podle pravidel.
+export function moveBookToShelf(id, genre) {
+  const name = String(genre || '').trim();
+  if (!name) return null;
+  return updateBook(id, { genre: name, genre_locked: true });
+}
+
+// Přejmenuje poličku v jedné knihovně; stejný název jako jiná polička je sloučí.
+export function renameShelf(libraryId, oldGenre, newGenre) {
+  const name = String(newGenre || '').trim();
+  if (!name) return 0;
+  let changed = 0;
+  const books = readBooksRaw().map((book) => {
+    if ((book.library_id || 'lib_default_1') !== libraryId || genreOf(book) !== oldGenre) return book;
+    changed += 1;
+    return { ...book, genre: name, genre_locked: true };
+  });
+  if (changed) writeBooksRaw(books);
+  return changed;
+}
+
 // Marks a book as lent to someone. `lentAt` is a YYYY-MM-DD date string.
 export function lendBook(id, borrower, lentAt) {
   const name = String(borrower || '').trim();

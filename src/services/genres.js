@@ -51,6 +51,8 @@ export function classifyGenre(subjects) {
  */
 export function genreOf(book) {
   const own = String(book?.genre || '').trim();
+  // Ručně zvolená / přejmenovaná polička se nepřetřiďuje podle pravidel.
+  if (own && book?.genre_locked) return own;
   if (own) return classifyGenre([own]) || own;
   return classifyGenre(book?.subjects) || FALLBACK_GENRE;
 }
