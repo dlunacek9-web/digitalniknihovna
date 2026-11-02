@@ -341,6 +341,18 @@ export default function App() {
     }
   };
 
+  // Při změně cílové chaty v náhledu se znovu ověří duplicita.
+  const handleTargetLibraryChange = (libId) => {
+    setTargetScanLibraryId(libId);
+    setScannedPreviewBook((book) => {
+      if (!book) return book;
+      const isbn = book.isbn ? toIsbn13(book.isbn) : '';
+      const dup = Boolean(isbn) && listBooks(libId).some((b) => toIsbn13(b.isbn) === isbn);
+      setIsDuplicateAlert(dup);
+      return { ...book, alreadyInLibrary: dup };
+    });
+  };
+
   // Kniha z městské knihovny projde stejným náhledem jako naskenovaná.
   const handleCityAddBook = (book) => {
     const isbn = book.isbn ? toIsbn13(book.isbn) : '';
@@ -549,6 +561,9 @@ export default function App() {
           book={scannedPreviewBook}
           alreadyInLibrary={isDuplicateAlert}
           existingGenres={scanTargetGenres}
+          libraries={libraries.filter((lib) => !lib.demo)}
+          targetLibraryId={scanTargetId}
+          onTargetChange={handleTargetLibraryChange}
           onConfirm={handleSaveBook}
           onCancel={() => setScannedPreviewBook(null)}
         />

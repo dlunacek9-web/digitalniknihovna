@@ -55,6 +55,7 @@ export function computeLibraryStats(books, { topLimit = 5 } = {}) {
     authorCount: authorCounts.length,
     topAuthors: authorCounts.slice(0, topLimit),
     genres,
+    genreCount: genreCounts.length,
     booksWithoutGenre: books.length - books.filter((book) => String(book.genre || '').trim()).length,
     decades,
     longestBook: byPages[0] || null,

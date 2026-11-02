@@ -67,7 +67,7 @@ function HorizontalBars({ items, grown }) {
   );
 }
 
-function GenreDonut({ genres, total }) {
+function GenreDonut({ genres, total, genreCount }) {
   let start = 0;
   const segments = genres.map((genre, index) => {
     const end = start + (genre.count / total) * 360;
@@ -87,7 +87,7 @@ function GenreDonut({ genres, total }) {
           className="absolute inset-[18%] rounded-full flex flex-col items-center justify-center"
           style={{ background: '#fff' }}
         >
-          <span className="text-lg font-extrabold text-stone-900 leading-none">{genres.length}</span>
+          <span className="text-lg font-extrabold text-stone-900 leading-none">{genreCount}</span>
           <span className="text-[9px] text-stone-400 font-medium">žánrů</span>
         </div>
       </div>
@@ -177,7 +177,7 @@ export default function LibraryStats({ books }) {
           <ChartCard icon={Tags} title="Žánry">
             {genreTotal ? (
               <>
-                <GenreDonut genres={stats.genres} total={genreTotal} />
+                <GenreDonut genres={stats.genres} total={genreTotal} genreCount={stats.genreCount} />
                 {stats.booksWithoutGenre > 0 && (
                   <p className="text-[10px] text-stone-400 mt-3">
                     {stats.booksWithoutGenre} knih bez uvedeného žánru

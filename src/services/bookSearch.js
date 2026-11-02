@@ -162,3 +162,27 @@ export async function searchWorldBooks({ query, scope = 'all', lang = 'any' }) {
   const failed = settled.filter((r) => r.status === 'rejected').length;
   return { books: mergeResults(lists), failed };
 }
+
+const BROWSE_PAGE_SIZE = 30;
+
+/**
+ * Výchozí nekonečný seznam knih, dokud se nehledá: oblíbené tituly z Open Library po stránkách.
+ * @returns {Promise<{ books: Object[], hasMore: boolean }>}
+ */
+export async function browseWorldBooks({ lang = 'any', page = 1 } = {}) {
+  const langDef = SEARCH_LANGS.find((l) => l.id === lang) || SEARCH_LANGS[0];
+  const params = new URLSearchParams({
+    q: 'subject:fiction',
+    sort: 'editions',
+    limit: String(BROWSE_PAGE_SIZE),
+    page: String(page),
+    fields: 'title,subtitle,author_name,publisher,first_publish_year,number_of_pages_median,cover_i,isbn,subject'
+  });
+  if (langDef.openLibrary) params.set('language', langDef.openLibrary);
+  const data = await fetchJson(`https://openlibrary.org/search.json?${params}`);
+  const docs = data.docs || [];
+  return {
+    books: docs.map(normalizeOpenLibraryDoc).filter(Boolean),
+    hasMore: docs.length === BROWSE_PAGE_SIZE
+  };
+}

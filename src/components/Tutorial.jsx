@@ -25,13 +25,6 @@ export const TUTORIAL_STEPS = [
     done: (c) => c.tab !== 'scan'
   },
   {
-    id: 'cat',
-    anchor: 'cat',
-    title: 'Chatová kočka',
-    text: 'V chatě bydlí kočka. Klikni na ni a pohlaď ji.',
-    done: (c) => c.catPets > 0
-  },
-  {
     id: 'shelf',
     anchor: '.cabin-label',
     title: 'Poličky podle žánrů',

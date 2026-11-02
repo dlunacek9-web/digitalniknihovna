@@ -3,7 +3,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { bookColor, genreOf, isLightColor } from '../services/genres';
 import GenreField from './GenreField';
 
-export default function BookPreviewModal({ book, alreadyInLibrary, existingGenres = [], onConfirm, onCancel }) {
+export default function BookPreviewModal({ book, alreadyInLibrary, existingGenres = [], libraries = [], targetLibraryId = '', onTargetChange, onConfirm, onCancel }) {
   const [isSaving, setIsSaving] = useState(false);
   const [genre, setGenre] = useState(() => genreOf(book));
   const [coverFailed, setCoverFailed] = useState(false);
@@ -59,6 +59,24 @@ export default function BookPreviewModal({ book, alreadyInLibrary, existingGenre
                 </div>
               ))}
             </dl>
+          )}
+
+          {libraries.length > 1 && (
+            <div className="genre-field">
+              <span className="eyebrow">Chata</span>
+              <div className="genre-field__chips" role="group" aria-label="Do které chaty přidat">
+                {libraries.map((lib) => (
+                  <button
+                    key={lib.id}
+                    type="button"
+                    className={lib.id === targetLibraryId ? 'is-on' : ''}
+                    onClick={() => onTargetChange?.(lib.id)}
+                  >
+                    {lib.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           <GenreField value={genre} onChange={setGenre} existingGenres={existingGenres} />

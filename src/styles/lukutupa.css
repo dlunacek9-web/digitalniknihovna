@@ -1136,3 +1136,4 @@ button.chip-glass { cursor: pointer; font-family: var(--sans); }
 .tour-confirm__card button { flex: 1; height: 44px; border: 0; border-radius: 999px; font: 600 14px var(--sans); cursor: pointer; }
 .tour-confirm__stay { background: linear-gradient(180deg, #ffb98f, var(--ember)); color: #2a160c; }
 .tour-confirm__quit { background: rgba(42, 36, 32, 0.1); color: var(--ink); }
+.tome__sentinel { height: 1px; }
