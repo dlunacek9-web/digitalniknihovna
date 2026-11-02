@@ -6,7 +6,7 @@ import { createCabinScene } from '../cabin/cabinScene';
  * 3D chata s knihovnou. Scéna žije mimo React; komponenta jí jen předává
  * knihy a otevřenou poličku.
  */
-export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick }) {
+export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick, cityEntering }) {
   const canvasRef = useRef(null);
   const labelsRef = useRef(null);
   const cityRef = useRef(null);
@@ -51,6 +51,19 @@ export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpe
       wasOpen.current = false;
     }
   }, [openGenre, posterOpen]);
+
+  const wasEntering = useRef(false);
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (cityEntering) {
+      scene.flyToCity();
+      wasEntering.current = true;
+    } else if (wasEntering.current) {
+      scene.resetView();
+      wasEntering.current = false;
+    }
+  }, [cityEntering]);
 
   return (
     <div className="cabin">

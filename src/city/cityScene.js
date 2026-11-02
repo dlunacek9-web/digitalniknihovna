@@ -112,7 +112,7 @@ function makeCoverTexture(book) {
   return t;
 }
 
-export function createCityScene({ canvas, onLook }) {
+export function createCityScene({ canvas, onLook, onIntroDone }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -525,16 +525,30 @@ export function createCityScene({ canvas, onLook }) {
 
   // ---------- smyčka ----------
   let last = performance.now();
+  const introStart = last;
+  const INTRO_MS = 3600;
+  let introDone = false;
   renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const t = now / 1000;
 
+    // vstup: kamera se pomalu snáší chodbou z výšky k očím, svíčky se rozsvěcují
+    const intro = clamp01((now - introStart) / INTRO_MS);
+    const ie = 1 - Math.pow(1 - intro, 3);
+    renderer.toneMappingExposure = 0.45 + 0.8 * ie;
+    scene.fog.density = 0.055 - 0.027 * ie;
+    camera.position.set(Math.sin(intro * Math.PI) * 0.25, 1.65 + (1 - ie) * 1.9, (1 - ie) * 15);
+    if (!introDone && intro >= 1) {
+      introDone = true;
+      onIntroDone?.();
+    }
+
     // kamera: vlevo nahoře → pohled lehce vlevo nahoru
     const ease = 1 - Math.pow(0.001, dt);
     smooth.yaw += (-look.x * MAX_YAW - smooth.yaw) * ease;
     smooth.pitch += (-look.y * MAX_PITCH - smooth.pitch) * ease;
-    camera.rotation.set(BASE_PITCH + smooth.pitch, smooth.yaw, 0);
+    camera.rotation.set(BASE_PITCH * ie - 0.04 * (1 - ie) + smooth.pitch, smooth.yaw, 0);
     // pultík je ve světě: HTML nad ním se posouvá stejně jako jeho obraz
     onLook?.(smooth.yaw * fPx, smooth.pitch * fPx);
 
@@ -554,7 +568,7 @@ export function createCityScene({ canvas, onLook }) {
       const f = 0.82 + Math.sin(t * 9 + c.flicker) * 0.09 + Math.sin(t * 23 + c.flicker * 2) * 0.06;
       c.g.position.set(c.base.x + Math.sin(t * 0.3 + c.phase) * 0.12, c.base.y + Math.sin(t * c.speed + c.phase) * 0.16, c.base.z);
       c.flame.scale.set(f, 0.8 + f * 0.4, f);
-      c.glow.material.opacity = 0.6 + f * 0.3;
+      c.glow.material.opacity = (0.6 + f * 0.3) * (0.25 + 0.75 * ie);
       if (c.light) c.light.intensity = 5 * f;
     }
     for (const d of drifters) {

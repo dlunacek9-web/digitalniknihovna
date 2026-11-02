@@ -734,6 +734,17 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     flyTo(center.clone().addScaledVector(dir, dist), center, 1300);
     camAnim.onDone = () => posterEl?.classList.add('is-ready');
   }
+  // Kamera vlétne do bubliny; kotva bubliny skončí uprostřed obrazovky.
+  function flyToCity() {
+    clearTimeout(resumeTimer);
+    scene.updateMatrixWorld(true);
+    const target = CITY_ANCHOR.clone().applyMatrix4(world.matrixWorld);
+    const dir = camera.position.clone().sub(target).normalize();
+    controls.autoRotate = false;
+    controls.enabled = false;
+    controls.minDistance = 0.5;
+    flyTo(target.clone().addScaledVector(dir, 2.2), target, 1100);
+  }
   function resetView() {
     if (posterEl) {
       posterEl.classList.remove('is-ready');
@@ -878,6 +889,6 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     labelsEl.innerHTML = '';
   }
 
-  return { setBooks, focusShelf, focusPoster, resetView, dispose };
+  return { setBooks, focusShelf, focusPoster, flyToCity, resetView, dispose };
 }
 

@@ -22,11 +22,13 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
   const [status, setStatus] = useState('idle'); // idle | loading | done | error
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [phase, setPhase] = useState('search');
+  const [phase, setPhase] = useState('intro'); // intro: kamera se snáší chodbou
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     const scene = createCityScene({
       canvas: canvasRef.current,
+      onIntroDone: () => setPhase('search'),
       onLook: (dx, dy) => {
         if (stageRef.current) stageRef.current.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
       }
@@ -96,15 +98,21 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
     });
   }, [addedSignal, phase]);
 
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(onClose, 700);
+  }, [closing, onClose]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape' || modalOpen) return;
       if (phase === 'lectern') sendBack();
-      else if (phase === 'search') onClose();
+      else if (phase === 'search') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, modalOpen, sendBack, onClose]);
+  }, [phase, modalOpen, sendBack, requestClose]);
 
   const showTome = phase === 'search';
   const facts = selected
@@ -116,12 +124,12 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
     : [];
 
   return (
-    <div className="city" role="dialog" aria-modal="true" aria-label="Městská knihovna">
+    <div className={`city ${closing ? 'is-closing' : ''}`} role="dialog" aria-modal="true" aria-label="Městská knihovna">
       <canvas ref={canvasRef} className="city-canvas" aria-hidden="true" />
       <div className="city-vignette" aria-hidden="true" />
 
-      <header className="city-top">
-        <button type="button" className="chip-glass" onClick={onClose} disabled={phase !== 'search' && phase !== 'lectern'}>
+      <header className={`city-top ${phase === 'intro' ? 'is-hidden' : ''}`}>
+        <button type="button" className="chip-glass" onClick={requestClose} disabled={phase !== 'search' && phase !== 'lectern'}>
           <ArrowLeft size={16} />
           <span>Zpět do chaty</span>
         </button>

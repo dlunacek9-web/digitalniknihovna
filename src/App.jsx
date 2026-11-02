@@ -48,6 +48,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [librariesOpen, setLibrariesOpen] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
+  const [cityEntering, setCityEntering] = useState(false);
   const [cityAddedSignal, setCityAddedSignal] = useState(0);
 
   // Scanner & manual entry state
@@ -323,6 +324,17 @@ export default function App() {
     setIsDuplicateAlert(alreadyInLibrary);
   };
 
+  // Kamera vlétne do bubliny a o chvíli později se z jejího středu rozevře hala.
+  const enterCity = () => {
+    if (cityEntering) return;
+    setCityEntering(true);
+    setTimeout(() => setCityOpen(true), 650);
+  };
+  const leaveCity = () => {
+    setCityOpen(false);
+    setCityEntering(false);
+  };
+
   const openBookAnywhere = (book) => {
     const libId = book.library_id || 'lib_default_1';
     if (libId !== activeLibraryId) switchLibrary(libId);
@@ -342,7 +354,8 @@ export default function App() {
         openGenre={openGenre}
         onShelfClick={setOpenGenre}
         posterOpen={activeTab === 'profile'}
-        onCityClick={() => activeTab === 'library' && !openGenre && setCityOpen(true)}
+        onCityClick={() => activeTab === 'library' && !openGenre && enterCity()}
+        cityEntering={cityEntering}
         onPosterClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
         posterContent={
           <>
@@ -360,7 +373,7 @@ export default function App() {
         }
       />
 
-      {activeTab === 'library' && (
+      {activeTab === 'library' && !cityEntering && (
         <>
           <header className="cabin-header">
             <div className="cabin-brand">
@@ -446,7 +459,7 @@ export default function App() {
       {cityOpen && (
         <Suspense fallback={null}>
           <CityLibrary
-            onClose={() => setCityOpen(false)}
+            onClose={leaveCity}
             onAddBook={handleCityAddBook}
             addedSignal={cityAddedSignal}
             modalOpen={Boolean(scannedPreviewBook)}
