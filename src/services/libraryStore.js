@@ -260,3 +260,27 @@ export function importLibraryData({ libraries, books }) {
   writeBooksRaw([...addedBooks, ...currentBooks]);
   return { librariesAdded: newLibraries.length, booksAdded: addedBooks.length, booksSkipped: books.length - addedBooks.length };
 }
+
+function updateBook(id, changes) {
+  const books = readBooksRaw();
+  const index = books.findIndex((book) => book.id === id);
+  if (index === -1) return null;
+
+  const updated = { ...books[index], ...changes };
+  books[index] = updated;
+  writeBooksRaw(books);
+  return updated;
+}
+
+// Marks a book as lent to someone. `lentAt` is a YYYY-MM-DD date string.
+export function lendBook(id, borrower, lentAt) {
+  const name = String(borrower || '').trim();
+  if (!name) return null;
+  return updateBook(id, {
+    loan: { borrower: name, lent_at: lentAt || new Date().toISOString().slice(0, 10) }
+  });
+}
+
+export function returnBook(id) {
+  return updateBook(id, { loan: null });
+}

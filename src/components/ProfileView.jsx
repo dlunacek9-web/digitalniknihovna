@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { User, Sparkles, Download, Upload, FileSpreadsheet, Bookmark, Award, ShieldCheck } from 'lucide-react';
 import LibraryStats from './LibraryStats';
+import LoansList from './LoansList';
 import { exportLibraryData, importLibraryData } from '../services/libraryStore';
 import { buildJsonBackup, buildCsv, parseJsonBackup, backupFileName, downloadFile } from '../services/libraryBackup';
 
-export default function ProfileView({ books, onDataImported, showNotification }) {
+export default function ProfileView({ books, onDataImported, showNotification, onReturnBook, onOpenBook }) {
   const fileInputRef = useRef(null);
 
   const handleExportJson = () => {
@@ -53,6 +54,8 @@ export default function ProfileView({ books, onDataImported, showNotification })
           </span>
         </div>
       </div>
+
+      <LoansList books={books} onReturnBook={onReturnBook} onOpenBook={onOpenBook} />
 
       <LibraryStats books={books} />
 

@@ -1,11 +1,14 @@
 import React from 'react';
+import { HandHelping } from 'lucide-react';
 import { BookCoverPlaceholder } from './BookCoverPlaceholder';
+import { OVERDUE_DAYS, daysSince } from '../services/bookLoans';
 
 export default function BookCard({ book, onClick }) {
   // Extract year if full date string provided
   const publicationYear = book.publication_date
     ? book.publication_date.substring(0, 4)
     : null;
+  const isOverdue = book.loan ? daysSince(book.loan.lent_at) > OVERDUE_DAYS : false;
 
   return (
     <div
@@ -44,7 +47,17 @@ export default function BookCard({ book, onClick }) {
           {book.authors || 'Neznámý autor'}
         </p>
 
-        <div className="flex items-center space-x-2 mt-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
+          {book.loan && (
+            <span
+              className={`inline-flex items-center max-w-full px-2 py-0.5 text-[11px] font-semibold rounded-full ${
+                isOverdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              <HandHelping className="w-3 h-3 mr-1 flex-shrink-0" />
+              <span className="truncate">Půjčeno · {book.loan.borrower}</span>
+            </span>
+          )}
           {publicationYear && (
             <span className="inline-block px-2 py-0.5 bg-stone-100 text-stone-600 text-[11px] font-medium rounded-full">
               {publicationYear}
