@@ -498,6 +498,11 @@ export default function App() {
           <ProfileView
             totalBooks={allBooksCount}
             totalPages={totalPagesSum}
+            onDataImported={() => {
+              refreshLibraries();
+              if (selectedLibraryId) fetchBooksForLibrary(selectedLibraryId, searchQuery);
+            }}
+            showNotification={showNotification}
           />
         )}
 
