@@ -19,7 +19,9 @@ import {
   renameLibrary,
   deleteLibrary,
   getActiveLibraryId,
-  setActiveLibraryId
+  setActiveLibraryId,
+  lendBook,
+  returnBook
 } from './services/libraryStore';
 import {
   BookMarked,
@@ -180,6 +182,33 @@ export default function App() {
     } catch (err) {
       showNotification('Nepodařilo se uložit změnu v prohlížeči.', 'error');
     }
+  };
+
+  // Lend / return a book
+  const refreshAfterLoanChange = (updated) => {
+    if (selectedBook && updated && selectedBook.id === updated.id) setSelectedBook(updated);
+    if (selectedLibraryId) fetchBooksForLibrary(selectedLibraryId, searchQuery);
+    refreshLibraries();
+  };
+
+  const handleLendBook = (id, borrower, lentAt) => {
+    const updated = lendBook(id, borrower, lentAt);
+    if (!updated) {
+      showNotification('Knihu se nepodařilo označit jako půjčenou.', 'error');
+      return;
+    }
+    refreshAfterLoanChange(updated);
+    showNotification(`Kniha je půjčená: ${updated.loan.borrower}.`);
+  };
+
+  const handleReturnBook = (id) => {
+    const updated = returnBook(id);
+    if (!updated) {
+      showNotification('Knihu se nepodařilo označit jako vrácenou.', 'error');
+      return;
+    }
+    refreshAfterLoanChange(updated);
+    showNotification(`„${updated.title}“ je zpátky doma.`);
   };
 
   // Save book from preview
@@ -502,6 +531,8 @@ export default function App() {
               if (selectedLibraryId) fetchBooksForLibrary(selectedLibraryId, searchQuery);
             }}
             showNotification={showNotification}
+            onReturnBook={handleReturnBook}
+            onOpenBook={setSelectedBook}
           />
         )}
 
@@ -618,6 +649,8 @@ export default function App() {
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
           onDelete={handleDeleteBook}
+          onLend={handleLendBook}
+          onReturn={handleReturnBook}
         />
       )}
 
