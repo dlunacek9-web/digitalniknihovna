@@ -8,9 +8,11 @@
     "preview": "vite preview",
     "server": "node server/server.js",
     "start": "node server/server.js",
-    "verify:rls": "node scripts/verify-rls.mjs"
+    "verify:rls": "node scripts/verify-rls.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "barcode-detector": "^3.2.3",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
@@ -19,6 +21,7 @@
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-router": "^8.5.1",
     "three": "^0.160.0"
   },
   "devDependencies": {
@@ -27,6 +30,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "playwright": "^1.63.0",
     "tailwindcss": "^4.0.7",
-    "vite": "^6.1.1"
+    "vite": "^6.1.1",
+    "vitest": "^5.1.0"
   }
 }
