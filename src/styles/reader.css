@@ -162,3 +162,21 @@ a.chip-glass { text-decoration: none; }
   .street-panel { left: 12px; right: 12px; top: auto; bottom: 76px; width: auto; max-height: 42vh; }
   .pub-loans-btn { right: 12px; bottom: 16px; }
 }
+
+/* ---------- veřejná knihovna: odpolední zlatá hodina místo severské noci ---------- */
+.cabin--library {
+  background:
+    radial-gradient(90% 60% at 80% 12%, rgba(255, 214, 140, 0.75) 0%, transparent 60%),
+    linear-gradient(180deg, #f4c58a 0%, #f2dcb4 45%, #d9e3c8 100%);
+}
+.cabin--library .cabin-aurora { opacity: 0.35; }
+.cabin--library .cabin-aurora i:nth-child(1) { background: #ffb870; }
+.cabin--library .cabin-aurora i:nth-child(2) { background: #ffd98f; }
+.cabin--library .cabin-aurora i:nth-child(3) { background: #f2a38a; }
+.theme-library .cabin-header { color: #3a2a1c; }
+.theme-library .cabin-brand h1 { color: #2f4a3a; }
+.theme-library .cabin-brand p { color: #6a5640; }
+.theme-library .cabin-brand b { color: #b5532a; }
+.theme-library .chip-glass { color: #3a2a1c; background: rgba(255, 252, 244, 0.6); border-color: rgba(90, 60, 30, 0.2); }
+.theme-library .cabin-hint { color: #6a5640; }
+.theme-library .dock-btn--ghost { color: #3a2a1c; background: rgba(255, 252, 244, 0.7); border-color: rgba(90, 60, 30, 0.2); }

@@ -54,7 +54,9 @@ const easeOutBounce = (t) => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
-export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick, onCatPet }) {
+export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick, onCatPet, variant = 'cabin' }) {
+  // 'library' = veřejná knihovna: stejná mechanika, ostrov i poličky, jiné prostředí a vybavení.
+  const LIB = variant === 'library';
   // ---------- renderer & scéna ----------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -78,8 +80,8 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.25;
 
-  scene.add(new THREE.HemisphereLight(0xc7d9ee, 0x4a3628, 0.9));
-  const moon = new THREE.DirectionalLight(0xd6e4ff, 1.6);
+  scene.add(LIB ? new THREE.HemisphereLight(0xffe9c4, 0x6a5a3c, 1.15) : new THREE.HemisphereLight(0xc7d9ee, 0x4a3628, 0.9));
+  const moon = new THREE.DirectionalLight(LIB ? 0xffd9a0 : 0xd6e4ff, LIB ? 2.1 : 1.6);
   moon.position.set(-10, 18, 8);
   moon.castShadow = true;
   moon.shadow.mapSize.set(2048, 2048);
@@ -111,8 +113,29 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     shade: mat(0xffe8c7, { emissive: 0xffc98a, emissiveIntensity: 1.4 }),
     black: mat(0x2a2420),
     oakFrame: mat(0x7c5636),
-    cat: mat(0x3a3532)
+    cat: mat(0x3a3532),
+    grass: mat(0x8fa65a, { roughness: 1 }),
+    leafA: mat(0xd9792b, { flatShading: true }),
+    leafB: mat(0xe3a73a, { flatShading: true }),
+    leafC: mat(0xb5532e, { flatShading: true }),
+    plaster: mat(0xf1e6cf),
+    wainscot: mat(0x4d6b57),
+    brick: mat(0xb86a4b, { flatShading: true }),
+    counter: mat(0x8a5a38),
+    counterTop: mat(0xd9c3a0),
+    skin: mat(0xf0c9a6),
+    hair: mat(0x6b4a3a),
+    cardigan: mat(0x3f6b73),
+    brass: mat(0xc9a15a, { metalness: 0.6, roughness: 0.35 }),
+    lampGreen: mat(0x2f6b4f, { emissive: 0x1a3d2c, emissiveIntensity: 0.5 }),
+    tile1: mat(0xe6d7b8),
+    tile2: mat(0xb48a5e)
   };
+  if (LIB) {
+    M.floor = M.tile1;
+    M.wall = M.plaster;
+    M.snow = M.grass; // trávník místo sněhu
+  }
   const bookMaterials = new Map();
   const bookMat = (color) => {
     if (!bookMaterials.has(color)) bookMaterials.set(color, mat(color, { roughness: 0.7 }));
@@ -128,6 +151,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     });
     return o;
   };
+  const at = (mesh, x, y, z) => (mesh.position.set(x, y, z), mesh);
   const box = (w, h, d, material, r = 0.04) => new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, r), material);
 
   const world = new THREE.Group();
@@ -153,6 +177,21 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   }
   world.add(shadowy(island));
 
+  // podzimní strom: kulatá koruna z několika koulí
+  function maple(h) {
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 1.1 * h, 6), M.trunk);
+    trunk.position.y = 0.55 * h;
+    g.add(trunk);
+    const mats = [M.leafA, M.leafB, M.leafC];
+    [[0, 1.7, 0, 0.95], [0.5, 1.4, 0.2, 0.65], [-0.45, 1.5, -0.15, 0.7], [0.1, 2.2, 0.1, 0.6]].forEach(([x, y, z, r], i) => {
+      const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(r * h, 1), mats[(i + Math.floor(h * 10)) % 3]);
+      crown.position.set(x * h, y * h, z * h);
+      g.add(crown);
+    });
+    return shadowy(g);
+  }
+
   function pine(h) {
     const g = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 6), M.trunk);
@@ -175,7 +214,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (Math.abs(x) < 7 && Math.abs(z) < 6.2) continue;
-    const tree = pine(0.8 + rand() * 0.6);
+    const tree = (LIB ? maple : pine)(LIB ? 0.6 + rand() * 0.35 : 0.8 + rand() * 0.6);
     tree.position.set(x, 0, z);
     tree.rotation.y = rand() * 6;
     world.add(tree);
@@ -183,6 +222,8 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
 
   // ---------- chata (řez jako domeček pro panenky) ----------
   const cabin = new THREE.Group();
+  // Chatové vybavení (krb, křeslo, kočka…) se v knihovně nepřidává do scény.
+  const homey = LIB ? new THREE.Group() : cabin;
   const floor = box(12.4, 0.3, 10.4, M.floor, 0.08);
   floor.position.y = 0.15;
   const backWall = box(12.4, 2.6, 0.3, M.wall, 0.06);
@@ -214,10 +255,10 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   chimney.position.y = 2.2;
   fireplace.add(fpBody, fpHole, fire, chimney);
   fireplace.position.set(-5.5, 0.3, 2.2);
-  cabin.add(fireplace);
+  homey.add(fireplace);
   const fireLight = new THREE.PointLight(0xff8a3d, 6, 9, 1.6);
   fireLight.position.set(-4.6, 1.0, 2.2);
-  cabin.add(fireLight);
+  homey.add(fireLight);
 
   const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.04, 48), M.rug);
   rug.scale.z = 0.7;
@@ -226,7 +267,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   rugRing.rotation.x = Math.PI / 2;
   rugRing.scale.y = 0.7;
   rugRing.position.set(-2.2, 0.35, 2.6);
-  cabin.add(rug, rugRing);
+  homey.add(rug, rugRing);
 
   const chair = new THREE.Group();
   const seat = box(1.2, 0.45, 1.1, M.chair, 0.18);
@@ -248,7 +289,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   }
   chair.position.set(-3.3, 0.3, 1.6);
   chair.rotation.y = 0.7;
-  cabin.add(chair);
+  homey.add(chair);
 
   const lamp = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.0, 8), M.black);
@@ -259,12 +300,12 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   shade.position.y = 2.05;
   lamp.add(pole, base, shade);
   lamp.position.set(-4.5, 0.3, 0.6);
-  cabin.add(lamp);
+  homey.add(lamp);
   const lampLight = new THREE.PointLight(0xffc98a, 7, 8, 1.4);
   lampLight.position.set(-4.5, 2.0, 0.6);
   lampLight.castShadow = true;
   lampLight.shadow.mapSize.set(512, 512);
-  cabin.add(lampLight);
+  homey.add(lampLight);
 
   // stolek vedle křesla s hromádkou tří knih
   const table = new THREE.Group();
@@ -285,7 +326,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     return y + h;
   }, 0.81);
   table.position.set(-2.1, 0.3, 0.5);
-  cabin.add(shadowy(table));
+  homey.add(shadowy(table));
 
   // kočka: torso (tělo, hlava, ocas) + čtyři nohy; pose se plynule míchá mezi „leží“ a „stojí“
   const cat = new THREE.Group();
@@ -318,7 +359,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   cat.add(torso, catHit);
   cat.position.set(-1.7, 0.34, 2.8);
   cat.rotation.y = -0.4;
-  cabin.add(cat);
+  homey.add(cat);
 
   // kočičí příběh po kliknutí: zvednout se, protáhnout, vrnět, znovu si lehnout
   const smooth = (t) => t * t * (3 - 2 * t);
@@ -437,7 +478,364 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
   poster.add(posterBoard, posterPaper);
   poster.position.set(-5.84, 1.6, 4.15);
   poster.rotation.y = Math.PI / 2;
-  cabin.add(poster);
+  homey.add(poster);
+
+  // ---------- vybavení veřejné knihovny ----------
+  // Výdejní pult s knihovnicí u levé stěny, čtecí kout, vozík s vrácenými knihami.
+  let librarian = null;
+  const ARM_REST = 0.85;
+  const libraryAnim = { wave: 0, arm: null, head: null, stamp: null };
+  if (LIB) {
+    // šachovnicová dlažba
+    const tiles = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d');
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        g.fillStyle = (x + y) % 2 ? '#e6d7b8' : '#c9ab7e';
+        g.fillRect(x * 32, y * 32, 32, 32);
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(6, 5);
+      return t;
+    })();
+    floor.material = new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.7 });
+
+    // zelený lambris na stěnách
+    const wainBack = box(12.4, 0.9, 0.34, M.wainscot, 0.04);
+    wainBack.position.set(0, 0.75, -5.05);
+    const wainLeft = box(0.34, 0.9, 10.4, M.wainscot, 0.04);
+    wainLeft.position.set(-6.05, 0.75, 0);
+    cabin.add(wainBack, wainLeft);
+
+    // velké kulaté hodiny nad pultem (číselník míří do místnosti, k +x)
+    const clock = new THREE.Group();
+    const clockRim = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.08, 32), M.brass);
+    const clockFace = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.1, 32), M.blanket);
+    clockRim.rotation.z = clockFace.rotation.z = Math.PI / 2;
+    clockFace.position.x = 0.01;
+    const hands = new THREE.Group();
+    hands.position.x = 0.07;
+    const hourHand = box(0.02, 0.2, 0.03, M.black, 0.005);
+    hourHand.position.y = 0.1;
+    const minHand = box(0.02, 0.3, 0.025, M.black, 0.005);
+    minHand.position.set(0.012, 0.15, 0);
+    hands.add(hourHand, minHand);
+    clock.add(clockRim, clockFace, hands);
+    clock.position.set(-5.84, 2.15, 1.2);
+    cabin.add(shadowy(clock));
+    libraryAnim.hands = hands;
+
+    // nástěnka s pravidly (místo korkového profilu)
+    const board = box(0.08, 1.2, 1.5, M.oakFrame, 0.03);
+    board.position.set(-5.88, 1.7, 4.0);
+    const noteTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 300;
+      c.height = 240;
+      const g = c.getContext('2d');
+      g.fillStyle = '#d9b98a';
+      g.fillRect(0, 0, 300, 240);
+      [[20, 20, '#fffbee', -0.04], [160, 30, '#cfe6d2', 0.05], [30, 130, '#fbe3b4', 0.03], [165, 125, '#fffbee', -0.03]].forEach(([x, y, col, r]) => {
+        g.save();
+        g.translate(x + 55, y + 45);
+        g.rotate(r);
+        g.fillStyle = col;
+        g.fillRect(-55, -45, 110, 90);
+        g.fillStyle = 'rgba(60,50,40,0.5)';
+        for (let i = 0; i < 4; i++) g.fillRect(-45, -28 + i * 16, 90 - (i % 2) * 24, 3);
+        g.fillStyle = '#c0392b';
+        g.beginPath();
+        g.arc(0, -42, 6, 0, 7);
+        g.fill();
+        g.restore();
+      });
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const notes = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 1.06), new THREE.MeshStandardMaterial({ map: noteTex, roughness: 1 }));
+    notes.position.set(-5.83, 1.7, 4.0);
+    notes.rotation.y = Math.PI / 2;
+    cabin.add(shadowy(board), notes);
+
+    // ---- výpůjční pult (podélně se stěnou, čtenář stojí z pravé strany) ----
+    const counter = new THREE.Group();
+    const cBody = box(0.9, 1.05, 3.4, M.counter, 0.05);
+    cBody.position.y = 0.52;
+    const cTop = box(1.15, 0.1, 3.65, M.counterTop, 0.04);
+    cTop.position.y = 1.08;
+    counter.add(cBody, cTop);
+    for (let i = 0; i < 4; i++) {
+      const panel = box(0.04, 0.7, 0.62, M.oakFrame, 0.015);
+      panel.position.set(0.47, 0.5, -1.3 + i * 0.87);
+      counter.add(panel);
+    }
+    // lampa, razítko, zvonek, kartotéka, monitor
+    const dlamp = new THREE.Group();
+    dlamp.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.04, 16), M.brass), 0, 0.02, 0));
+    dlamp.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), M.brass), 0, 0.27, 0));
+    const dshade = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), M.lampGreen);
+    dshade.position.y = 0.55;
+    dlamp.add(dshade);
+    dlamp.position.set(0.05, 1.13, 1.2);
+    counter.add(dlamp);
+    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.brass);
+    bell.position.set(0.25, 1.13, 0.2);
+    counter.add(bell);
+    const stamp = new THREE.Group();
+    const stampBase = box(0.14, 0.05, 0.22, M.black, 0.01);
+    const stampKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.12, 8), M.oakFrame);
+    stampKnob.position.y = 0.08;
+    stamp.add(stampBase, stampKnob);
+    stamp.position.set(0.1, 1.16, -0.5);
+    counter.add(stamp);
+    libraryAnim.stamp = stamp;
+    const monitor = box(0.06, 0.4, 0.55, M.black, 0.02);
+    monitor.position.set(-0.3, 1.5, -1.0);
+    monitor.rotation.y = 0.25;
+    const screenGlow = box(0.02, 0.34, 0.48, mat(0x9fd8c2, { emissive: 0x4fa68a, emissiveIntensity: 1 }), 0.01);
+    screenGlow.position.set(-0.26, 1.5, -1.0);
+    screenGlow.rotation.y = 0.25;
+    counter.add(monitor, screenGlow);
+    const cardBox = box(0.4, 0.35, 0.5, M.oakFrame, 0.03);
+    cardBox.position.set(0.05, 1.3, -1.45);
+    counter.add(cardBox);
+    // stoh vrácených knih na pultu
+    [[0x3e5c76, 0.4, 0.09], [0xa8443a, 0.36, 0.07], [0xc9973f, 0.38, 0.08], [0x5e6b4a, 0.34, 0.07]].reduce((y, [color, w, h], i) => {
+      const bk = box(w, h, 0.28, bookMat(color), 0.012);
+      bk.position.set(0.3, y + h / 2, 1.0);
+      bk.rotation.y = (i % 2 ? 1 : -1) * 0.18;
+      counter.add(bk);
+      return y + h;
+    }, 1.13);
+    // cedulka „Výpůjčka“
+    const signTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 320;
+      c.height = 100;
+      const g = c.getContext('2d');
+      g.fillStyle = '#fffbee';
+      g.fillRect(0, 0, 320, 100);
+      g.strokeStyle = '#2f6b4f';
+      g.lineWidth = 6;
+      g.strokeRect(5, 5, 310, 90);
+      g.fillStyle = '#2f6b4f';
+      g.font = '700 46px Fraunces, Georgia, serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('Výpůjčka', 160, 52);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.28), new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.9 }));
+    sign.position.set(0.1, 1.55, 0.5);
+    sign.rotation.set(0, Math.PI / 2, 0);
+    const signStand = box(0.04, 0.3, 0.04, M.brass, 0.01);
+    signStand.position.set(0.1, 1.38, 0.5);
+    counter.add(sign, signStand);
+    counter.position.set(-4.0, 0.3, 2.0);
+    cabin.add(shadowy(counter));
+
+    const deskLight = new THREE.PointLight(0xffd79a, 5, 7, 1.5);
+    deskLight.position.set(-3.8, 2.0, 3.2);
+    cabin.add(deskLight);
+
+    // ---- knihovnice za pultem, otočená do místnosti ----
+    librarian = new THREE.Group();
+    const torsoL = box(0.5, 0.95, 0.7, M.cardigan, 0.18);
+    torsoL.position.y = 1.25;
+    const collar = box(0.38, 0.12, 0.5, M.blanket, 0.05);
+    collar.position.y = 1.68;
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.8, 16), M.oakFrame);
+    skirt.position.y = 0.4;
+    const headL = new THREE.Group();
+    headL.position.y = 2.0;
+    const face = new THREE.Mesh(new THREE.SphereGeometry(0.27, 20, 16), M.skin);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.29, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), M.hair);
+    hair.position.set(-0.03, 0.03, 0);
+    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), M.hair);
+    bun.position.set(-0.18, 0.3, 0);
+    headL.add(face, hair, bun);
+    for (const z of [-0.1, 0.1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), M.black);
+      eye.position.set(0.25, 0.04, z);
+      const lens = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.01, 6, 16), M.brass);
+      lens.position.set(0.26, 0.04, z);
+      lens.rotation.y = Math.PI / 2;
+      headL.add(eye, lens);
+    }
+    const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 4, 12, Math.PI), mat(0xb5524a));
+    mouth.position.set(0.26, -0.1, 0);
+    mouth.rotation.set(0, Math.PI / 2, Math.PI);
+    headL.add(mouth);
+    // paže: ramena u těla, ruce opřené o pult; pravá (u razítka) se zvedá
+    const mkArm = (z) => {
+      const arm = new THREE.Group();
+      arm.position.set(0.05, 1.6, z);
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.55, 8).translate(0, -0.27, 0), M.cardigan);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), M.skin);
+      hand.position.y = -0.58;
+      arm.add(upper, hand);
+      arm.rotation.z = ARM_REST; // dopředu k pultu
+      return arm;
+    };
+    const armL = mkArm(-0.38);
+    const armR = mkArm(0.38);
+    libraryAnim.arm = armR;
+    libraryAnim.head = headL;
+    // cedulka se jménem
+    const tag = box(0.02, 0.1, 0.2, M.blanket, 0.005);
+    tag.position.set(0.26, 1.5, -0.18);
+    librarian.add(torsoL, collar, skirt, headL, armL, armR, tag);
+    librarian.position.set(-4.95, 0.3, 2.0);
+    librarian.rotation.y = 0; // obličej k +x, směrem do místnosti
+    const hitL = new THREE.Mesh(new THREE.BoxGeometry(1, 2.4, 1), M.cat);
+    hitL.position.y = 1.2;
+    hitL.visible = false;
+    hitL.userData.librarian = true;
+    librarian.add(hitL);
+    cabin.add(shadowy(librarian));
+    libraryAnim.hit = hitL;
+
+    // ---- čtecí kout ----
+    const rtable = new THREE.Group();
+    const rtop = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.08, 36), M.counterTop);
+    rtop.position.y = 0.82;
+    const rleg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.8, 10), M.oakFrame);
+    rleg.position.y = 0.4;
+    const rfoot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.06, 20), M.oakFrame);
+    rfoot.position.y = 0.03;
+    rtable.add(rtop, rleg, rfoot);
+    const rlamp = at(new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.lampGreen), 0, 1.2, 0);
+    const rlampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.34, 6), M.brass);
+    rlampPole.position.y = 1.02;
+    rtable.add(rlamp, rlampPole);
+    [[0xa8443a, 0.5, 0.12, 0.36, 0.3], [0x3e5c76, 0.44, 0.1, 0.32, -0.2]].reduce((y, [color, w, h, d, rot]) => {
+      const bk = box(w, h, d, bookMat(color), 0.012);
+      bk.position.set(0.35, y + h / 2, 0.25);
+      bk.rotation.y = rot;
+      rtable.add(bk);
+      return y + h;
+    }, 0.86);
+    rtable.position.set(-1.6, 0.3, 3.4);
+    cabin.add(shadowy(rtable));
+    for (const [cx, cz, ry] of [[-2.7, 3.5, Math.PI / 2 - 0.2], [-0.5, 3.3, -Math.PI / 2 + 0.3]]) {
+      const stool = new THREE.Group();
+      const seatS = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.1, 20), M.chair);
+      seatS.position.y = 0.55;
+      stool.add(seatS);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.55, 6), M.oakFrame);
+        leg.position.set(Math.cos(a) * 0.18, 0.27, Math.sin(a) * 0.18);
+        stool.add(leg);
+      }
+      stool.position.set(cx, 0.3, cz);
+      stool.rotation.y = ry;
+      cabin.add(shadowy(stool));
+    }
+    // zelený kulatý koberec pod stolem
+    const lrug = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.04, 40), M.wainscot);
+    lrug.scale.z = 0.8;
+    lrug.position.set(-1.6, 0.32, 3.4);
+    cabin.add(lrug);
+
+    // vozík s vrácenými knihami
+    const cart = new THREE.Group();
+    const cartBase = box(1.0, 0.06, 0.55, M.oakFrame, 0.02);
+    cartBase.position.y = 0.3;
+    const cartTop = box(1.0, 0.06, 0.55, M.oakFrame, 0.02);
+    cartTop.position.y = 0.85;
+    cart.add(cartBase, cartTop);
+    for (const [wx, wz] of [[-0.45, -0.22], [0.45, -0.22], [-0.45, 0.22], [0.45, 0.22]]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), M.brass);
+      post.position.set(wx, 0.6, wz);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 12), M.black);
+      wheel.rotation.x = Math.PI / 2;
+      wheel.position.set(wx, 0.1, wz);
+      cart.add(post, wheel);
+    }
+    [[0x5e6b4a, 0.0], [0xc9973f, 0.34], [0x3e5c76, 0.68]].forEach(([color, ox], i) => {
+      const bk = box(0.26, 0.4, 0.34, bookMat(color), 0.012);
+      bk.position.set(-0.36 + ox, 1.08, 0);
+      bk.rotation.z = i === 2 ? 0.15 : 0;
+      cart.add(bk);
+    });
+    [[0xa8443a, -0.3], [0x6b4d5e, -0.02], [0xe9dcc3, 0.26]].forEach(([color, ox]) => {
+      const bk = box(0.22, 0.32, 0.3, bookMat(color), 0.012);
+      bk.position.set(ox, 0.51, 0);
+      cart.add(bk);
+    });
+    cart.position.set(-2.0, 0.3, 0.6);
+    cart.rotation.y = 0.35;
+    cabin.add(shadowy(cart));
+
+    // globus ve výklenku u vstupu
+    const globe = new THREE.Group();
+    const gStand = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.9, 12), M.oakFrame);
+    gStand.position.y = 0.45;
+    const gBall = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 16), mat(0x6fa3c7, { emissive: 0x1d3a52, emissiveIntensity: 0.5 }));
+    gBall.position.y = 1.35;
+    const gLand = new THREE.Mesh(new THREE.IcosahedronGeometry(0.43, 1), mat(0xb5a05a, { flatShading: true }));
+    gLand.position.y = 1.35;
+    gLand.scale.set(1, 0.72, 1);
+    globe.add(gStand, gBall, gLand);
+    globe.position.set(-5.2, 0.3, -3.6);
+    cabin.add(shadowy(globe));
+
+    // rostlina v květináči
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.4, 12), M.brick);
+    pot.position.set(-5.5, 0.5, 0.0);
+    const plant = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), M.pine2);
+    plant.position.set(-5.5, 1.05, 0.0);
+    plant.scale.set(1, 1.25, 1);
+    cabin.add(shadowy(pot), shadowy(plant));
+
+    // závěsná cedule s nápisem nad vchodem (před ostrovem)
+    const bigSignTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 128;
+      const g = c.getContext('2d');
+      g.fillStyle = '#2f6b4f';
+      g.fillRect(0, 0, 512, 128);
+      g.strokeStyle = '#e9dcc3';
+      g.lineWidth = 6;
+      g.strokeRect(8, 8, 496, 112);
+      g.fillStyle = '#f6efe4';
+      g.font = '600 68px Fraunces, Georgia, serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('KNIHOVNA', 256, 68);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const bigSign = new THREE.Group();
+    const bsPanel = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 0.12), new THREE.MeshStandardMaterial({ map: bigSignTex, roughness: 0.8 }));
+    bsPanel.position.y = 2.7;
+    for (const sx of [-1.45, 1.45]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.7, 8), M.oakFrame);
+      post.position.set(sx, 1.35, 0);
+      bigSign.add(post);
+    }
+    bigSign.add(bsPanel);
+    bigSign.position.set(-3.6, 0.3, 5.5);
+    cabin.add(shadowy(bigSign));
+
+    // lucerny na ostrově
+    for (const [lx, lz] of [[-6.8, 5.6], [6.6, 5.4]]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.0, 8), M.black);
+      post.position.set(lx, 1.0, lz);
+      const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.4, 0.34), M.shade);
+      lantern.position.set(lx, 2.2, lz);
+      world.add(post, lantern);
+    }
+  }
 
   world.add(shadowy(cabin));
   fire.castShadow = false;
@@ -467,6 +865,11 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     snowGeo,
     new THREE.PointsMaterial({ size: 0.16, map: snowTexture, transparent: true, depthWrite: false, opacity: 0.9 })
   );
+  if (LIB) {
+    snow.material.color.set(0xe0902f);
+    snow.material.size = 0.3;
+    for (let i = 0; i < SNOW; i++) snowVel[i] *= 0.6;
+  }
   scene.add(snow);
 
   // ---------- tweens ----------
@@ -676,6 +1079,22 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     }
   }
 
+
+  // knihovnice: občas orazítkuje, pootočí hlavu, po kliknutí kývne a mávne
+  function updateLibrarian(now) {
+    const { arm, head, stamp } = libraryAnim;
+    const cycle = (now % 9000) / 9000;
+    const stampPhase = cycle > 0.55 && cycle < 0.7 ? Math.sin(((cycle - 0.55) / 0.15) * Math.PI) : 0;
+    const w = libraryAnim.wave ? (now - libraryAnim.wave) / 1600 : 2;
+    const waving = w >= 0 && w < 1 ? Math.sin(w * Math.PI) : 0;
+    arm.rotation.z = ARM_REST + stampPhase * 0.2 + waving * 1.9;
+    arm.rotation.x = waving * Math.sin(now * 0.02) * 0.35;
+    stamp.position.y = 1.16 - stampPhase * 0.02;
+    head.rotation.y = Math.sin(now * 0.0006) * 0.35 + waving * 0.15;
+    head.rotation.z = Math.sin(now * 0.0011) * 0.04 - waving * 0.1;
+    libraryAnim.hands.rotation.x = -(now / 60000) * Math.PI * 2;
+  }
+
   // ---------- kamera ----------
   let camAnim = null;
   let posterEl = null;
@@ -788,9 +1207,11 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     ray.setFromCamera(ptr, camera);
     const pickables = [];
     for (const s of shelves.values()) s.group.traverse((o) => o.isMesh && pickables.push(o));
-    pickables.push(posterBoard, posterPaper, catHit);
+    if (LIB) pickables.push(libraryAnim.hit);
+    else pickables.push(posterBoard, posterPaper, catHit);
     const hit = ray.intersectObjects(pickables, false)[0];
-    if (hit?.object.userData.cat) petCat(performance.now());
+    if (hit?.object.userData.librarian) libraryAnim.wave = performance.now();
+    else if (hit?.object.userData.cat) petCat(performance.now());
     else if (hit?.object.userData.poster) onPosterClick?.();
     else if (hit?.object.userData.genre) onShelfClick?.(hit.object.userData.genre);
   };
@@ -840,6 +1261,7 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
     fireLight.intensity = 6 * f;
     fire.scale.set(0.8 * f, 1.2 * (2 - f), 1.1);
     updateCat(now);
+    if (LIB) updateLibrarian(now);
 
     const p = snowGeo.attributes.position.array;
     for (let i = 0; i < SNOW; i++) {

@@ -215,7 +215,7 @@ function Interior({ library, myLoans, onReloadLoans, onBack, onOpenLoans }) {
 
   return (
     <>
-      <LibraryCabin key={library.id} books={books} openGenre={openGenre} onShelfClick={setOpenGenre} hideCity />
+      <LibraryCabin key={library.id} books={books} openGenre={openGenre} onShelfClick={setOpenGenre} hideCity variant="library" />
 
       {!openGenre && (
         <>
