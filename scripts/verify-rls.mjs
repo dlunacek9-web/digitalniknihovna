@@ -242,6 +242,8 @@ async function main() {
   await denied('stav výtisku nejde měnit přímo', adminA, `update public.catalog_items set status = 'on_loan' where id = $1`, [item.id], /permission denied/);
   await denied('výtisk nejde přesunout do jiné knihovny', adminA, 'update public.catalog_items set library_id = $1 where id = $2', [libB.id, item.id], /permission denied/);
   check('zaměstnanec upraví výtisk', (await one(staffA, `update public.catalog_items set genre = 'Klasika' where id = $1 returning genre`, [item.id])).genre === 'Klasika');
+  const spare = await one(staffA, insertItem, [libA.id, 'Výtisk ke smazání', 'SMAZAT-1']);
+  check('zaměstnanec smaže výtisk bez výpůjček', (await as(staffA, 'delete from public.catalog_items where id = $1 returning id', [spare.id])).length === 1);
   check('čtenář čte katalog všech knihoven', (await as(reader1, 'select id from public.catalog_items')).length === 3);
   await denied('admin B nevyřadí výtisk A', adminB, `select public.set_item_status($1, 'unavailable')`, [item.id]);
   await denied('stav on_loan nejde nastavit ručně', adminA, `select public.set_item_status($1, 'on_loan')`, [item.id], /jen výpůjčka/);

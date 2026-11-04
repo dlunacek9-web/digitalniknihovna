@@ -56,6 +56,16 @@ export async function updateCatalogItem(id, row) {
   return unwrap(await supabase.from('catalog_items').update(row).eq('id', id).select().single());
 }
 
+/** Smaže výtisk. Výtisk s historií výpůjček databáze nepustí, zůstává jen vyřazení. */
+export async function deleteCatalogItem(id) {
+  const { data, error } = await supabase.from('catalog_items').delete().eq('id', id).select('id');
+  if (error?.code === '23503') {
+    throw new Error('Výtisk má historii výpůjček, proto ho nejde smazat. Můžeš ho vyřadit.');
+  }
+  // RLS cizí řádek bez chyby přeskočí, prázdný výsledek proto znamená, že se nic nesmazalo.
+  if (unwrap({ data, error }).length === 0) throw new Error('Výtisk se nepodařilo smazat.');
+}
+
 export function setItemStatus(itemId, status) {
   return rpc('set_item_status', { p_item_id: itemId, p_status: status });
 }

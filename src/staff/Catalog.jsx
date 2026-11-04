@@ -1,110 +1,57 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useStaffContext } from './StaffApp';
 import { useAction, useAsync } from '../lib/useAsync';
-import { EMPTY_CATALOG_FORM, formToRow, itemToForm, lookupToForm, matchesQuery } from '../lib/catalog';
+import {
+  analyzeCatalog,
+  copyPreset,
+  editionPreset,
+  EMPTY_FILTERS,
+  filterCatalog,
+  optionsFor,
+  sortCatalog,
+  SORT_OPTIONS
+} from '../lib/catalog';
 import { ITEM_STATUS_LABELS } from '../lib/loanRules';
-import { lookupByIsbn } from '../services/knihovnyApi';
-import { addCatalogItem, listCatalog, setItemStatus, updateCatalogItem } from '../services/publicLibraryApi';
+import { plural } from '../services/genres';
+import { deleteCatalogItem, listCatalog, setItemStatus } from '../services/publicLibraryApi';
 import { ConfirmButton, LoadState } from '../pages/PlainParts';
-
-const FIELDS = [
-  ['title', 'Název *'],
-  ['authors', 'Autoři'],
-  ['isbn', 'ISBN'],
-  ['publisher', 'Nakladatel'],
-  ['year', 'Rok vydání'],
-  ['genre', 'Žánr'],
-  ['inventory_number', 'Inventární číslo'],
-  ['cover_url', 'Adresa obálky (https://)']
-];
+import ItemForm from './ItemForm';
 
 const TAG_CLASS = { available: 'is-ok', reserved: 'is-warn', on_loan: 'is-warn', unavailable: 'is-off' };
 
-function ItemForm({ libraryId, editing, onSaved, onCancel }) {
-  const [form, setForm] = useState(() => (editing ? itemToForm(editing) : EMPTY_CATALOG_FORM));
-  const [isbn, setIsbn] = useState('');
-  const [lookupNote, setLookupNote] = useState('');
-  const lookup = useAction();
-  const save = useAction();
-
-  const findIsbn = () => {
-    setLookupNote('');
-    lookup.run(async () => {
-      const result = await lookupByIsbn(isbn);
-      if (!result.success) throw new Error(`${result.error} Údaje můžeš vyplnit ručně.`);
-      setForm((current) => ({ ...lookupToForm(result.book), inventory_number: current.inventory_number }));
-      setLookupNote('Údaje jsou předvyplněné, zkontroluj je a ulož.');
-    });
-  };
-
-  const submit = (e) => {
-    e.preventDefault();
-    save.run(async () => {
-      const row = formToRow(form);
-      if (editing) await updateCatalogItem(editing.id, row);
-      else await addCatalogItem(libraryId, row);
-      onSaved();
-    });
-  };
-
-  return (
-    <section className="staff-panel">
-      <h2>{editing ? 'Upravit výtisk' : 'Přidat výtisk'}</h2>
-      {!editing && (
-        <div className="staff-toolbar">
-          <label className="plain-field">
-            Vyhledat podle ISBN
-            <input value={isbn} onChange={(e) => setIsbn(e.target.value)} placeholder="978…" inputMode="numeric" />
-          </label>
-          <button type="button" className="plain-btn" disabled={lookup.busy || !isbn.trim()} onClick={findIsbn}>
-            {lookup.busy ? 'Hledám…' : 'Vyhledat'}
-          </button>
-        </div>
-      )}
-      {lookup.error && <p className="plain-error" role="alert" style={{ marginBottom: 12 }}>{lookup.error}</p>}
-      {lookupNote && <p className="plain-notice" role="status" style={{ marginBottom: 12 }}>{lookupNote}</p>}
-      <form className="plain-form" onSubmit={submit}>
-        <div className="staff-form-grid">
-          {FIELDS.map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <input
-                value={form[key]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                required={key === 'title'}
-              />
-            </label>
-          ))}
-        </div>
-        {save.error && <p className="plain-error" role="alert">{save.error}</p>}
-        <div className="plain-actions">
-          <button type="submit" className="plain-btn plain-btn--primary" disabled={save.busy}>
-            {save.busy ? 'Ukládám…' : 'Uložit'}
-          </button>
-          <button type="button" className="plain-btn" onClick={onCancel}>Zrušit</button>
-        </div>
-      </form>
-    </section>
-  );
+function groupLabel(group) {
+  const parts = [];
+  if (group?.copies > 1) parts.push(`${group.copies} ${plural(group.copies, 'výtisk', 'výtisky', 'výtisků')} tohoto vydání`);
+  if (group?.editions > 1) parts.push(`${group.editions} ${plural(group.editions, 'vydání', 'vydání', 'vydání')} knihy`);
+  return parts.join(' · ');
 }
 
 export default function Catalog() {
   const { library } = useStaffContext();
   const { data, loading, error, reload } = useAsync(() => listCatalog(library.id), [library.id]);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [formState, setFormState] = useState(null); // null | { editing: item | null }
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [sort, setSort] = useState('newest');
+  const [formState, setFormState] = useState(null); // null | { key, editing, preset, heading }
+  const formKey = useRef(0);
   const action = useAction();
 
+  const allItems = data ?? [];
+  const groups = useMemo(() => analyzeCatalog(allItems), [data]);
   const items = useMemo(
-    () =>
-      (data ?? []).filter(
-        (item) =>
-          (!statusFilter || item.status === statusFilter) &&
-          matchesQuery([item.title, item.authors, item.isbn, item.inventory_number, item.genre, item.publisher], query)
-      ),
-    [data, query, statusFilter]
+    () => sortCatalog(filterCatalog(allItems, filters, groups), sort),
+    [data, filters, groups, sort]
   );
+  const genres = useMemo(() => optionsFor(allItems, 'genre'), [data]);
+  const publishers = useMemo(() => optionsFor(allItems, 'publisher'), [data]);
+
+  const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+  const filtersActive = Object.keys(EMPTY_FILTERS).some((key) => filters[key] !== EMPTY_FILTERS[key]);
+
+  const openForm = (next) => {
+    formKey.current += 1;
+    setFormState({ key: formKey.current, editing: null, preset: null, heading: 'Přidat výtisk', ...next });
+  };
+  const openEdit = (item) => openForm({ editing: item, heading: 'Upravit výtisk' });
 
   const changeStatus = (item, status) => {
     action.run(async () => {
@@ -113,20 +60,32 @@ export default function Catalog() {
     });
   };
 
+  const removeItem = (item) => {
+    action.run(async () => {
+      await deleteCatalogItem(item.id);
+      if (formState?.editing?.id === item.id) setFormState(null);
+      await reload();
+    });
+  };
+
   return (
     <>
       <header className="staff-head">
         <h1>Katalog</h1>
-        <button type="button" className="plain-btn plain-btn--primary" onClick={() => setFormState({ editing: null })}>
+        <button type="button" className="plain-btn plain-btn--primary" onClick={() => openForm()}>
           Přidat výtisk
         </button>
       </header>
 
       {formState && (
         <ItemForm
-          key={formState.editing?.id || 'new'}
+          key={formState.key}
           libraryId={library.id}
           editing={formState.editing}
+          preset={formState.preset}
+          heading={formState.heading}
+          items={allItems}
+          onEdit={openEdit}
           onCancel={() => setFormState(null)}
           onSaved={() => {
             setFormState(null);
@@ -138,22 +97,63 @@ export default function Catalog() {
       <div className="staff-toolbar">
         <input
           type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={filters.query}
+          onChange={(e) => setFilter('query', e.target.value)}
           placeholder="Hledat název, autora, ISBN…"
           aria-label="Hledat v katalogu"
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filtrovat podle stavu">
+        <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Filtrovat podle stavu">
           <option value="">Všechny stavy</option>
           {Object.entries(ITEM_STATUS_LABELS).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
+        <select value={filters.genre} onChange={(e) => setFilter('genre', e.target.value)} aria-label="Filtrovat podle žánru">
+          <option value="">Všechny žánry</option>
+          {genres.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
+        </select>
+        <select value={filters.publisher} onChange={(e) => setFilter('publisher', e.target.value)} aria-label="Filtrovat podle nakladatele">
+          <option value="">Všichni nakladatelé</option>
+          {publishers.map((publisher) => <option key={publisher} value={publisher}>{publisher}</option>)}
+        </select>
+        <input
+          className="staff-toolbar__year"
+          type="number"
+          value={filters.yearFrom}
+          onChange={(e) => setFilter('yearFrom', e.target.value)}
+          placeholder="Rok od"
+          aria-label="Rok vydání od"
+        />
+        <input
+          className="staff-toolbar__year"
+          type="number"
+          value={filters.yearTo}
+          onChange={(e) => setFilter('yearTo', e.target.value)}
+          placeholder="Rok do"
+          aria-label="Rok vydání do"
+        />
+        <select value={filters.isbn} onChange={(e) => setFilter('isbn', e.target.value)} aria-label="Filtrovat podle ISBN">
+          <option value="">S ISBN i bez něj</option>
+          <option value="with">Jen s ISBN</option>
+          <option value="without">Jen bez ISBN</option>
+        </select>
+        <select value={filters.group} onChange={(e) => setFilter('group', e.target.value)} aria-label="Filtrovat duplicity a vydání">
+          <option value="">Všechny knihy</option>
+          <option value="copies">Duplicity (víc výtisků)</option>
+          <option value="editions">Víc vydání</option>
+        </select>
+        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Řazení">
+          {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        {filtersActive && (
+          <button type="button" className="plain-btn" onClick={() => setFilters(EMPTY_FILTERS)}>Zrušit filtry</button>
+        )}
       </div>
 
       {action.error && <p className="plain-error" role="alert" style={{ marginBottom: 12 }}>{action.error}</p>}
 
       <LoadState loading={loading} error={error} hasData={Boolean(data)} onRetry={reload}>
+        {data?.length > 0 && <p className="plain-muted staff-count">Zobrazeno {items.length} z {data.length}</p>}
         <div className="staff-table-wrap">
           <table className="staff-table">
             <thead>
@@ -167,31 +167,50 @@ export default function Catalog() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    {item.title}
-                    <small>{[item.authors, item.publisher, item.year].filter(Boolean).join(' · ')}</small>
-                  </td>
-                  <td>{item.isbn}</td>
-                  <td>{item.inventory_number}</td>
-                  <td>{item.genre}</td>
-                  <td><span className={`staff-tag ${TAG_CLASS[item.status]}`}>{ITEM_STATUS_LABELS[item.status]}</span></td>
-                  <td>
-                    <div className="staff-row-actions">
-                      <button type="button" className="plain-btn" onClick={() => setFormState({ editing: item })}>Upravit</button>
-                      {item.status === 'available' && (
-                        <ConfirmButton disabled={action.busy} onConfirm={() => changeStatus(item, 'unavailable')}>Vyřadit</ConfirmButton>
-                      )}
-                      {item.status === 'unavailable' && (
-                        <button type="button" className="plain-btn" disabled={action.busy} onClick={() => changeStatus(item, 'available')}>
-                          Vrátit do oběhu
+              {items.map((item) => {
+                const group = groupLabel(groups.get(item.id));
+                return (
+                  <tr key={item.id}>
+                    <td>
+                      {item.title}
+                      <small>{[item.authors, item.publisher, item.year].filter(Boolean).join(' · ')}</small>
+                      {group && <small className="staff-group">{group}</small>}
+                    </td>
+                    <td>{item.isbn || <span className="plain-muted">bez ISBN</span>}</td>
+                    <td>{item.inventory_number}</td>
+                    <td>{item.genre}</td>
+                    <td><span className={`staff-tag ${TAG_CLASS[item.status]}`}>{ITEM_STATUS_LABELS[item.status]}</span></td>
+                    <td>
+                      <div className="staff-row-actions">
+                        <button type="button" className="plain-btn" onClick={() => openEdit(item)}>Upravit</button>
+                        <button
+                          type="button"
+                          className="plain-btn"
+                          onClick={() => openForm({ preset: copyPreset(item), heading: 'Přidat další výtisk' })}
+                        >
+                          Další výtisk
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <button
+                          type="button"
+                          className="plain-btn"
+                          onClick={() => openForm({ preset: editionPreset(item), heading: 'Přidat jiné vydání' })}
+                        >
+                          Jiné vydání
+                        </button>
+                        {item.status === 'available' && (
+                          <ConfirmButton disabled={action.busy} onConfirm={() => changeStatus(item, 'unavailable')}>Vyřadit</ConfirmButton>
+                        )}
+                        {item.status === 'unavailable' && (
+                          <button type="button" className="plain-btn" disabled={action.busy} onClick={() => changeStatus(item, 'available')}>
+                            Vrátit do oběhu
+                          </button>
+                        )}
+                        <ConfirmButton disabled={action.busy} confirmLabel="Opravdu smazat?" onConfirm={() => removeItem(item)}>Smazat</ConfirmButton>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {items.length === 0 && (
