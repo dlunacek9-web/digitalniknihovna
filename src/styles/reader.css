@@ -145,6 +145,7 @@ a.chip-glass { text-decoration: none; }
 
 @media (max-width: 720px) {
   .cabin-header__side { max-width: 190px; }
+  .cabin-library-btn { white-space: nowrap; }
   .reader-nav { display: contents; }
   .reader-switch a { padding: 4px 10px; font-size: 12px; }
   .street-panel { left: 12px; right: 12px; top: auto; bottom: 76px; width: auto; max-height: 42vh; }

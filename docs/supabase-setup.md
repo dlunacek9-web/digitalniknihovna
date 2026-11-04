@@ -11,6 +11,14 @@ Postup založí databázi, přihlašování a lokální konfiguraci aplikace. N�
 
 ## 2. Spuštění migrací
 
+Vyber jen jeden způsob. Ruční spuštění se nezapíše do historie integrace, takže kombinace obou skončí chybou `already exists`.
+
+### Přes propojení s GitHubem (tento projekt)
+
+V **Project Settings → Integrations → GitHub** je zapnuté **Deploy to production**, **Working directory** je `.` a **Production branch name** je nasazovaná větev. Migrace se spustí samy po pushi na tuto větev. Nové změny databáze proto vždy patří do nového souboru v `supabase/migrations/`, stávající soubory se neupravují.
+
+### Ručně přes SQL Editor (projekt bez propojení)
+
 Spusť soubory ze složky `supabase/migrations/` přesně v tomto pořadí. Každý soubor spusť jen jednou.
 
 1. V levém menu otevři **SQL Editor** a klikni na **New query**.
@@ -72,9 +80,17 @@ Proměnná se jmenuje `ANON_KEY` podle zadání, ale patří do ní publishable 
 
 Publishable key veřejný být smí, protože data chrání RLS a granty z migrací.
 
-## 6. První uživatel
+## 6. Klíče pro nasazený web
 
-Funguje až s hotovým frontendem:
+GitHub Pages sestavuje web na serverech GitHubu, kde `.env.local` není. Hodnoty proto patří do tajných proměnných repozitáře:
+
+1. Na GitHubu otevři repozitář a jdi do **Settings → Secrets and variables → Actions**.
+2. Klikni na **New repository secret** a přidej `VITE_SUPABASE_URL` se stejnou hodnotou jako v `.env.local`.
+3. Stejně přidej `VITE_SUPABASE_ANON_KEY` s publishable key.
+
+Bez nich se web sestaví dál, ale zůstane jen domácí chata bez přihlášení a knihoven.
+
+## 7. První uživatel
 
 1. Učitel se zaregistruje a přihlásí.
 2. Zvolí **Založit školní knihovnu** a stane se jejím správcem.
