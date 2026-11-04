@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/lukutupa.css";
+@import "./styles/reader.css";
 @theme {
  --color-burgundy-50:#eaf0eb; --color-burgundy-100:#dbe6dd; --color-burgundy-200:#c0d2c4;
  --color-burgundy-300:#9fbaa6; --color-burgundy-400:#789985; --color-burgundy-500:#587b66;

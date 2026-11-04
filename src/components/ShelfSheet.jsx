@@ -35,6 +35,7 @@ function ShelfBook({ book, index, total, onOpen }) {
       </span>
       {book.status === 'reading' && <span className="shelf-book__flag" />}
       {book.loan && <span className="shelf-book__loan" title={`Půjčeno: ${book.loan.borrower}`}>půjčeno</span>}
+      {book.badge && <span className="shelf-book__loan">{book.badge}</span>}
     </button>
   );
 }
@@ -84,22 +85,25 @@ export default function ShelfSheet({ genre: openGenre, books: openBooks, onClose
               ) : (
                 <h2>
                   {genre}
-                  <button
-                    type="button"
-                    className="shelf-rename__pencil"
-                    aria-label="Přejmenovat poličku"
-                    onClick={() => {
-                      setDraft(genre);
-                      setEditing(true);
-                    }}
-                  >
-                    <Pencil size={16} />
-                  </button>
+                  {onRename && (
+                    <button
+                      type="button"
+                      className="shelf-rename__pencil"
+                      aria-label="Přejmenovat poličku"
+                      onClick={() => {
+                        setDraft(genre);
+                        setEditing(true);
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                 </h2>
               )}
             </div>
             <p className="shelf-sheet__meta">
-              {books.length} {plural(books.length, 'kniha', 'knihy', 'knih')} · {read} přečteno
+              {books.length} {plural(books.length, 'kniha', 'knihy', 'knih')}
+              {onRename && ` · ${read} přečteno`}
             </p>
             <button type="button" className="round-btn" onClick={onClose} aria-label="Zavřít poličku">
               <X size={20} />

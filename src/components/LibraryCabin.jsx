@@ -6,7 +6,7 @@ import { createCabinScene } from '../cabin/cabinScene';
  * 3D chata s knihovnou. Scéna žije mimo React; komponenta jí jen předává
  * knihy a otevřenou poličku.
  */
-export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick, cityEntering, onCatPet, sceneApiRef }) {
+export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick, cityEntering, onCatPet, sceneApiRef, hideCity = false }) {
   const canvasRef = useRef(null);
   const labelsRef = useRef(null);
   const cityRef = useRef(null);
@@ -75,12 +75,14 @@ export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpe
       <div className="cabin-aurora" aria-hidden="true"><i /><i /><i /></div>
       <canvas ref={canvasRef} className="cabin-canvas" aria-label="3D chata s poličkami podle žánrů" />
       <div ref={labelsRef} className={`cabin-labels ${openGenre || posterOpen ? 'is-hidden' : ''}`} />
-      <div className={`cabin-city ${openGenre || posterOpen ? 'is-hidden' : ''}`}>
-        <button ref={cityRef} type="button" className="cabin-city__btn" onClick={onCityClick} aria-label="Do městské knihovny">
-          <Library size={22} />
-          <span>Městská knihovna</span>
-        </button>
-      </div>
+      {!hideCity && (
+        <div className={`cabin-city ${openGenre || posterOpen ? 'is-hidden' : ''}`}>
+          <button ref={cityRef} type="button" className="cabin-city__btn" onClick={onCityClick} aria-label="Do městské knihovny">
+            <Library size={22} />
+            <span>Městská knihovna</span>
+          </button>
+        </div>
+      )}
       <div ref={posterRef} className="cabin-poster">
         {posterOpen && <div className="cabin-poster__paper">{posterContent}</div>}
       </div>
