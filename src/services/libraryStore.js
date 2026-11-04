@@ -258,6 +258,9 @@ export function renameLibrary(id, newName) {
 
 export function deleteLibrary(id) {
   return serialize(async () => {
+    if (allLibraries().length <= 1) {
+      throw new Error('Poslední knihovnu nelze smazat. Nejdřív vytvoř novou.');
+    }
     if (isDemoLibraryId(id)) {
       state.demoLibrary = null;
       state.demoBooks = [];
