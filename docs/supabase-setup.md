@@ -110,4 +110,4 @@ Skript spustí migrace na lokálním Postgresu (PGlite) s napodobenými rolemi S
 
 ## Mazání účtů
 
-Účet s historií výpůjček nejde smazat, protože `loans.reader_id` má `on delete restrict`. Nejdřív je potřeba rozhodnout, co se stane s jeho výpůjčkami.
+Čtenář si účet smaže sám na stránce Účet. Funkce `delete_my_account` uvolní jeho aktivně půjčené výtisky, smaže historii jeho výpůjček a pak účet. Jediný správce knihovny účet smazat nemůže, nejdřív musí jmenovat dalšího správce. Migrace `20261104000500_delete_account.sql` se musí spustit i na živém projektu.

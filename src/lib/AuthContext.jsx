@@ -78,6 +78,33 @@ export function AuthProvider({ children }) {
         if (error) throw new Error(toCzechMessage(error));
         return !data.session;
       },
+      // Jméno se ukládá do metadat účtu i do profilu, který vidí knihovníci.
+      async updateName(name) {
+        const clean = name.trim();
+        if (!clean) throw new Error('Zadej jméno.');
+        const { error } = await supabase.auth.updateUser({ data: { name: clean } });
+        if (error) throw new Error(toCzechMessage(error));
+        const { error: profileError } = await supabase.from('profiles').update({ name: clean }).eq('id', userId);
+        if (profileError) throw new Error(toCzechMessage(profileError));
+      },
+      // Vrací true, když je potřeba nový email potvrdit odkazem.
+      async updateEmail(email) {
+        const { data, error } = await supabase.auth.updateUser(
+          { email: email.trim() },
+          { emailRedirectTo: `${window.location.origin}${window.location.pathname}` }
+        );
+        if (error) throw new Error(toCzechMessage(error));
+        return data.user?.new_email != null;
+      },
+      async updatePassword(password) {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw new Error(toCzechMessage(error));
+      },
+      async deleteAccount() {
+        const { error } = await supabase.rpc('delete_my_account');
+        if (error) throw new Error(toCzechMessage(error));
+        await supabase.auth.signOut({ scope: 'local' });
+      },
       async signOut() {
         const { error } = await supabase.auth.signOut();
         if (error) throw new Error(toCzechMessage(error));

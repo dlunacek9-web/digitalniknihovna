@@ -36,6 +36,8 @@ const SLOTS = [
 
 // Otevřená pravá strana chaty, mezi zadní řadou a poličkami u okraje.
 const CITY_ANCHOR = new THREE.Vector3(6.4, 2.3, -2.4);
+// Bublina nad nástěnkou s profilem (nástěnka visí na levé stěně).
+const POSTER_ANCHOR = new THREE.Vector3(-5.2, 3.6, 4.15);
 
 const HOME = { pos: new THREE.Vector3(17, 16, 20), target: new THREE.Vector3(0, 0.6, 0) };
 
@@ -54,7 +56,7 @@ const easeOutBounce = (t) => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
-export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPosterClick, onCatPet, variant = 'cabin' }) {
+export function createCabinScene({ canvas, labelsEl, cityEl, profileEl, onShelfClick, onPosterClick, onCatPet, variant = 'cabin' }) {
   // 'library' = veřejná knihovna: stejná mechanika, ostrov i poličky, jiné prostředí a vybavení.
   const LIB = variant === 'library';
   // ---------- renderer & scéna ----------
@@ -1278,6 +1280,15 @@ export function createCabinScene({ canvas, labelsEl, cityEl, onShelfClick, onPos
       v.applyMatrix4(world.matrixWorld).project(camera);
       cityEl.style.transform = `translate(${(v.x * 0.5 + 0.5) * width}px, ${(-v.y * 0.5 + 0.5) * height}px) translate(-50%, -50%)`;
       cityEl.classList.toggle('is-visible', v.z < 1 && world.scale.x > 0.95);
+    }
+
+    // bublina nad nástěnkou
+    if (profileEl) {
+      v.copy(POSTER_ANCHOR);
+      v.y += Math.sin(now * 0.0015 + 1.5) * 0.12;
+      v.applyMatrix4(world.matrixWorld).project(camera);
+      profileEl.style.transform = `translate(${(v.x * 0.5 + 0.5) * width}px, ${(-v.y * 0.5 + 0.5) * height}px) translate(-50%, -50%)`;
+      profileEl.classList.toggle('is-visible', v.z < 1 && world.scale.x > 0.95);
     }
 
     // štítky poliček

@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
-import { Library } from 'lucide-react';
+import { Library, User } from 'lucide-react';
 import { createCabinScene } from '../cabin/cabinScene';
 
 /**
  * 3D chata s knihovnou. Scéna žije mimo React; komponenta jí jen předává
  * knihy a otevřenou poličku.
  */
-export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick, cityEntering, onCatPet, sceneApiRef, hideCity = false, variant = 'cabin' }) {
+export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpen, onPosterClick, posterContent, onCityClick, onProfileClick, cityEntering, onCatPet, sceneApiRef, hideCity = false, variant = 'cabin' }) {
   const canvasRef = useRef(null);
   const labelsRef = useRef(null);
   const cityRef = useRef(null);
+  const profileRef = useRef(null);
   const posterRef = useRef(null);
   const sceneRef = useRef(null);
   const onShelfClickRef = useRef(onShelfClick);
@@ -32,6 +33,7 @@ export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpe
       canvas: canvasRef.current,
       labelsEl: labelsRef.current,
       cityEl: cityRef.current,
+      profileEl: profileRef.current,
       onShelfClick: (genre) => onShelfClickRef.current?.(genre),
       onPosterClick: () => onPosterClickRef.current?.(),
       onCatPet: () => onCatPetRef.current?.(),
@@ -88,6 +90,14 @@ export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpe
           <button ref={cityRef} type="button" className="cabin-city__btn" onClick={onCityClick} aria-label="Do městské knihovny">
             <Library size={22} />
             <span>Městská knihovna</span>
+          </button>
+        </div>
+      )}
+      {onProfileClick && (
+        <div className={`cabin-city ${openGenre || posterOpen ? 'is-hidden' : ''}`}>
+          <button ref={profileRef} type="button" className="cabin-city__btn" onClick={onProfileClick} aria-label="Profil">
+            <User size={22} />
+            <span>Profil</span>
           </button>
         </div>
       )}

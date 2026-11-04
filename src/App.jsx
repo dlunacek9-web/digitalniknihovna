@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Camera, ChevronDown, Search, User, X } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronDown, Search, X } from 'lucide-react';
 import LibraryCabin from './components/LibraryCabin';
 import ShelfSheet from './components/ShelfSheet';
 import BookDetail from './components/BookDetail';
@@ -442,6 +442,7 @@ export default function App() {
         onShelfClick={setOpenGenre}
         posterOpen={activeTab === 'profile'}
         onCityClick={() => activeTab === 'library' && !openGenre && enterCity()}
+        onProfileClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
         cityEntering={cityEntering}
         sceneApiRef={sceneApiRef}
         onCatPet={() => tutorialOn && setCatPets((n) => n + 1)}
@@ -477,10 +478,6 @@ export default function App() {
             </div>
             <div className="cabin-header__side">
               <ReaderNav />
-              <button type="button" className="chip-glass" onClick={() => setActiveTab('profile')} aria-label="Profil">
-                <User size={16} />
-                <span>Profil</span>
-              </button>
             </div>
           </header>
 
