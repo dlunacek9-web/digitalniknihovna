@@ -8,6 +8,7 @@ const PublicLibraries = lazy(() => import('./reader/PublicLibraries.jsx'));
 const StaffApp = lazy(() => import('./staff/StaffApp.jsx'));
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
+const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
 
 // HashRouter: GitHub Pages neumí přesměrovat neznámé cesty na index.html.
 export default function Root() {
@@ -20,6 +21,7 @@ export default function Root() {
             <Route path="/knihovny" element={<PublicLibraries />} />
             <Route path="/prihlaseni" element={<AuthPage />} />
             <Route path="/ucet" element={<AccountPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/knihovnik/*" element={<StaffApp />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

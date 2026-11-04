@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Camera, ChevronDown, Search, X } from 'lucide-react';
 import LibraryCabin from './components/LibraryCabin';
 import ShelfSheet from './components/ShelfSheet';
@@ -8,7 +8,6 @@ import LibrarySheet from './components/LibrarySheet';
 import ProfileView from './components/ProfileView';
 import BookPreviewModal from './components/BookPreviewModal';
 import ManualBookEntryModal from './components/ManualBookEntryModal';
-import Tutorial from './components/Tutorial';
 import ReaderNav from './components/ReaderNav';
 import { lookupByIsbn, toIsbn13 } from './services/knihovnyApi';
 import {
@@ -36,8 +35,6 @@ import { useAuth } from './lib/AuthContext';
 // Skener (ZXing WASM) se načte až při prvním otevření.
 const BookScanner = lazy(() => import('./components/BookScanner'));
 const CityLibrary = lazy(() => import('./components/CityLibrary'));
-
-const TUTORIAL_KEY = 'digitalniknihovna.tutorial.v2';
 
 export default function App() {
   const userId = useAuth().user?.id;
@@ -72,27 +69,6 @@ export default function App() {
       return false;
     }
   });
-
-  // Tutoriál se ukáže jen poprvé; po dokončení i po vypnutí už se nevrací.
-  const [tutorialOn, setTutorialOn] = useState(() => {
-    try {
-      return localStorage.getItem(TUTORIAL_KEY) !== 'done';
-    } catch {
-      return true;
-    }
-  });
-  const [catPets, setCatPets] = useState(0);
-  const [librarySwitches, setLibrarySwitches] = useState(0);
-  const [cityProgress, setCityProgress] = useState({ phase: '', queryLen: 0 });
-  const sceneApiRef = useRef(null);
-  const exitTutorial = () => {
-    setTutorialOn(false);
-    try {
-      localStorage.setItem(TUTORIAL_KEY, 'done');
-    } catch {
-      // tutoriál se jen ukáže znovu
-    }
-  };
 
   // GitHub Pages is static, so the personal library is persisted locally in this browser.
   const refresh = () => {
@@ -205,7 +181,6 @@ export default function App() {
 
   // Library Handlers
   const switchLibrary = (libId) => {
-    if (tutorialOn) setLibrarySwitches((n) => n + 1);
     setActiveLibraryId(libId);
     setActiveLibraryIdState(libId);
     setTargetScanLibraryId(libId);
@@ -419,7 +394,6 @@ export default function App() {
   const leaveCity = () => {
     setCityOpen(false);
     setCityEntering(false);
-    setCityProgress({ phase: '', queryLen: 0 });
   };
 
   const openBookAnywhere = (book) => {
@@ -444,8 +418,6 @@ export default function App() {
         onCityClick={() => activeTab === 'library' && !openGenre && enterCity()}
         onProfileClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
         cityEntering={cityEntering}
-        sceneApiRef={sceneApiRef}
-        onCatPet={() => tutorialOn && setCatPets((n) => n + 1)}
         onPosterClick={() => activeTab === 'library' && !openGenre && setActiveTab('profile')}
         posterContent={
           <>
@@ -552,7 +524,6 @@ export default function App() {
             onAddBook={handleCityAddBook}
             addedSignal={cityAddedSignal}
             modalOpen={Boolean(scannedPreviewBook)}
-            onProgress={setCityProgress}
           />
         </Suspense>
       )}
@@ -625,25 +596,6 @@ export default function App() {
           initialIsbn={manualEntryIsbn}
           onConfirm={handleSaveBook}
           onCancel={() => setManualEntryIsbn(null)}
-        />
-      )}
-
-      {tutorialOn && (
-        <Tutorial
-          sceneApiRef={sceneApiRef}
-          onExit={exitTutorial}
-          context={{
-            tab: activeTab,
-            openGenre,
-            selectedBookId,
-            shelfCount: shelves.length,
-            catPets,
-            librariesOpen,
-            librarySwitches,
-            cityOpen,
-            cityPhase: cityProgress.phase,
-            cityQueryLen: cityProgress.queryLen
-          }}
         />
       )}
 

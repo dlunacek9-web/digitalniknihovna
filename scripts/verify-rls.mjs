@@ -32,14 +32,15 @@ async function bootstrap() {
     create role migrator nologin nosuperuser;
 
     create schema auth;
-    create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
+    create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb,
+      email_confirmed_at timestamptz, created_at timestamptz default now(), last_sign_in_at timestamptz);
     create function auth.uid() returns uuid language sql stable as
       $$ select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid $$;
 
     grant usage on schema auth to anon, authenticated, service_role, migrator, supabase_auth_admin;
     grant execute on function auth.uid() to public;
     grant insert on auth.users to supabase_auth_admin;
-    grant references, trigger on auth.users to migrator;
+    grant references, trigger, select, delete on auth.users to migrator;
 
     grant usage, create on schema public to migrator;
     grant usage on schema public to anon, authenticated, service_role;
@@ -120,7 +121,7 @@ async function structure() {
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm')
   `)).rows;
-  check('ve schématu public je právě 6 tabulek', tables.length === 6, tables.map((t) => t.relname).join());
+  check('ve schématu public je právě 8 tabulek', tables.length === 8, tables.map((t) => t.relname).join());
   for (const t of tables) {
     check(`RLS je zapnuté: ${t.relname}`, t.relrowsecurity === true);
     for (const priv of ['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger']) {
@@ -349,6 +350,23 @@ async function main() {
   await noRows('odebraný zaměstnanec ztratí přístup k výpůjčkám', staffA, 'select * from public.loans');
   await noRows('odebraný zaměstnanec nezmění katalog', staffA, `update public.catalog_items set title = 'x' where id = $1 returning id`, [item.id]);
   check('odebraný zaměstnanec zůstává čtenářem', (await as(staffA, 'select id from public.catalog_items')).length === 3);
+
+  console.log('Správce aplikace');
+  const owner = await createUser('Daniel');
+  await db.query(`update auth.users set email = 'daniel@lunacek.cz', email_confirmed_at = now() where id = $1`, [owner]);
+  await denied('čtenář není správce aplikace', reader1, 'select public.admin_list_users()', [], /Jen správce/);
+  await denied('čtenář nesmaže knihovnu přes admin', reader1, 'select public.admin_delete_library($1)', [libB.id], /Jen správce/);
+  await denied('čtenář nesmaže účet přes admin', reader1, 'select public.admin_delete_user($1)', [reader2], /Jen správce/);
+  await denied('anon nespustí admin funkci', null, 'select public.admin_list_libraries()', [], /permission denied/);
+  check('is_app_admin: správce', (await one(owner, 'select public.is_app_admin() as a')).a === true);
+  check('is_app_admin: čtenář', (await one(reader1, 'select public.is_app_admin() as a')).a === false);
+  check('správce vidí všechny účty', (await as(owner, 'select * from public.admin_list_users()')).length >= 7);
+  check('správce vidí všechny knihovny', (await as(owner, 'select * from public.admin_list_libraries()')).length === 2);
+  await denied('správce nesmaže sám sebe', owner, 'select public.admin_delete_user($1)', [owner], /Vlastní účet/);
+  await as(owner, 'select public.admin_delete_user($1)', [reader2]);
+  check('účet je smazán', (await db.query('select 1 from auth.users where id = $1', [reader2])).rows.length === 0);
+  await as(owner, 'select public.admin_delete_library($1)', [libB.id]);
+  check('knihovna je smazána', (await db.query('select 1 from public.libraries where id = $1', [libB.id])).rows.length === 0);
 
   await db.close();
   console.log(`\nProšlo: ${passed}, neprošlo: ${failures.length}`);
