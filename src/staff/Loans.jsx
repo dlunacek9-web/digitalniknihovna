@@ -7,6 +7,7 @@ import { ConfirmButton, LoadState } from '../pages/PlainParts';
 
 const FILTERS = {
   all: { label: 'Všechny', test: () => true },
+  return_requested: { label: 'Chce vrátit', test: (l) => l.status === 'picked_up' && Boolean(l.return_requested_at) },
   approved: { label: 'Čeká na předání', test: (l) => l.status === 'approved' },
   picked_up: { label: 'Půjčené', test: (l) => l.status === 'picked_up' },
   overdue: { label: 'Po termínu', test: (l) => isOverdue(l) }
@@ -75,6 +76,9 @@ export default function Loans() {
                       {loan.status === 'approved' && <span className="staff-tag is-warn">Čeká na předání</span>}
                       {loan.status === 'picked_up' && !overdue && <span className="staff-tag is-ok">Půjčeno</span>}
                       {overdue && <span className="staff-tag is-warn">Po termínu</span>}
+                      {loan.status === 'picked_up' && loan.return_requested_at && (
+                        <span className="staff-tag is-warn">Chce vrátit</span>
+                      )}
                     </td>
                     <td>{formatDate(loan.due_at)}</td>
                     <td>
@@ -99,8 +103,8 @@ export default function Loans() {
                           </ConfirmButton>
                         </div>
                       ) : (
-                        <ConfirmButton disabled={action.busy} confirmLabel="Potvrdit vrácení" onConfirm={() => act(() => returnLoan(loan.id))}>
-                          Vrátit
+                        <ConfirmButton disabled={action.busy} confirmLabel="Potvrdit převzetí" onConfirm={() => act(() => returnLoan(loan.id))}>
+                          Převzato
                         </ConfirmButton>
                       )}
                     </td>

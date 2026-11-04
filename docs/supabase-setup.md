@@ -25,6 +25,7 @@ Spusť soubory ze složky `supabase/migrations/` přesně v tomto pořadí. Kaž
 2. Vlož celý obsah `20261104000100_schema.sql` a klikni na **Run**.
 3. Stejně spusť `20261104000200_rls.sql`.
 4. Stejně spusť `20261104000300_rpc.sql`.
+5. Stejně spusť `20261104000400_loan_cabin_and_return.sql`.
 
 Pokud některý soubor skončí chybou, nepokračuj dalším a pošli mi text chyby.
 

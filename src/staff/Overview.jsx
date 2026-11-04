@@ -19,6 +19,7 @@ export default function Overview() {
   const loans = data?.loans ?? [];
   const count = (status) => loans.filter((l) => l.status === status).length;
   const overdue = loans.filter((l) => isOverdue(l)).length;
+  const returning = loans.filter((l) => l.status === 'picked_up' && l.return_requested_at).length;
 
   return (
     <>
@@ -36,6 +37,7 @@ export default function Overview() {
           <Link className={`staff-card ${count('requested') ? 'is-warn' : ''}`} to="/knihovnik/zadosti">
             <b>{count('requested')}</b> čekajících žádostí
           </Link>
+          <Link className={`staff-card ${returning ? 'is-warn' : ''}`} to="/knihovnik/vypujcky"><b>{returning}</b> chce vrátit</Link>
           <Link className="staff-card" to="/knihovnik/vypujcky"><b>{count('approved')}</b> čeká na předání</Link>
           <Link className="staff-card" to="/knihovnik/vypujcky"><b>{count('picked_up')}</b> půjčeno</Link>
           <Link className={`staff-card ${overdue ? 'is-warn' : ''}`} to="/knihovnik/vypujcky"><b>{overdue}</b> po termínu</Link>

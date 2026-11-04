@@ -89,15 +89,17 @@ export function listMyLoans(userId) {
   return fetchAll(() =>
     supabase
       .from('loans')
-      .select('*, catalog_items(title, authors, libraries(name))')
+      .select('*, catalog_items(title, authors, isbn, publisher, year, cover_url, libraries(name))')
       .eq('reader_id', userId)
       .order('requested_at', { ascending: false })
       .order('id')
   );
 }
 
-export const requestLoan = (itemId, note) => rpc('request_loan', { p_item_id: itemId, p_note: note || null });
+export const requestLoan = (itemId, note, cabinId) =>
+  rpc('request_loan', { p_item_id: itemId, p_note: note || null, p_cabin_id: cabinId });
 export const cancelLoan = (loanId) => rpc('cancel_loan', { p_loan_id: loanId });
+export const requestReturn = (loanId) => rpc('request_return', { p_loan_id: loanId });
 export const approveLoan = (loanId) => rpc('approve_loan', { p_loan_id: loanId });
 export const rejectLoan = (loanId, note) => rpc('reject_loan', { p_loan_id: loanId, p_note: note || null });
 export const pickupLoan = (loanId, dueAt) => rpc('pickup_loan', { p_loan_id: loanId, p_due_at: dueAt });

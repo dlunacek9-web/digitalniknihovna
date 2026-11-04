@@ -25,9 +25,13 @@ import {
   returnBook,
   updateBook,
   moveBookToShelf,
-  renameShelf
+  renameShelf,
+  syncBorrowedBooks
 } from './services/libraryStore';
 import { genreOf, groupIntoShelves, plural } from './services/genres';
+import { listMyLoans, requestReturn } from './services/publicLibraryApi';
+import { BORROWED_SHELF } from './lib/borrowedBooks';
+import { useAuth } from './lib/AuthContext';
 
 // Skener (ZXing WASM) se načte až při prvním otevření.
 const BookScanner = lazy(() => import('./components/BookScanner'));
@@ -36,6 +40,7 @@ const CityLibrary = lazy(() => import('./components/CityLibrary'));
 const TUTORIAL_KEY = 'digitalniknihovna.tutorial.v2';
 
 export default function App() {
+  const userId = useAuth().user?.id;
   const [activeTab, setActiveTab] = useState('library'); // 'library' | 'scan' | 'profile'
 
   // Každá knihovna je vlastní chata; zobrazuje se ta aktivní.
@@ -111,6 +116,44 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notification]);
 
+  // Knihy z knihovny: chata se srovná s výpůjčkami při otevření a při návratu do aplikace.
+  const syncLoans = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { added, removed, changed } = syncBorrowedBooks(await listMyLoans(userId));
+      if (!changed) return;
+      refresh();
+      if (added.length > 0) {
+        const cabin = getLibraries().find((lib) => lib.id === added[0].library_id);
+        showNotification(`Nová kniha · ${BORROWED_SHELF}`, `${added[0].title} je v chatě ${cabin?.name ?? ''}`, 'success', '📚');
+      } else if (removed.length > 0) {
+        showNotification('Knihovník převzal vrácenou knihu', removed[0].title, 'success', '📚');
+      }
+    } catch (err) {
+      // Bez spojení zůstává poslední známý stav, další pokus přijde při návratu do aplikace.
+      console.error('Error syncing loans:', err);
+    }
+    // refresh a showNotification používají jen settery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    syncLoans();
+    const onVisible = () => document.visibilityState === 'visible' && syncLoans();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [syncLoans]);
+
+  const handleRequestReturn = async (book) => {
+    try {
+      await requestReturn(book.library_loan.id);
+      showNotification('Žádost o vrácení odeslána', 'Až knihu přineseš, knihovník potvrdí převzetí.', 'success', '📚');
+    } catch (err) {
+      showNotification('Vrácení se nepodařilo odeslat', err.message, 'error');
+    }
+    await syncLoans();
+  };
+
   const books = useMemo(
     () => allBooks.filter((b) => (b.library_id || 'lib_default_1') === activeLibraryId),
     [allBooks, activeLibraryId]
@@ -141,6 +184,11 @@ export default function App() {
   const activeLibrary = libraries.find((l) => l.id === activeLibraryId);
 
   const closeShelf = useCallback(() => setOpenGenre(null), []);
+
+  // Poslední vypůjčená kniha se může vrátit i s otevřenou poličkou.
+  useEffect(() => {
+    if (openGenre && !shelves.some((s) => s.genre === openGenre)) setOpenGenre(null);
+  }, [openGenre, shelves]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -556,6 +604,7 @@ export default function App() {
           onDelete={handleDeleteBook}
           onLend={handleLendBook}
           onReturn={handleReturnBook}
+          onRequestReturn={handleRequestReturn}
         />
       )}
 

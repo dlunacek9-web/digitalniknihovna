@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { ArrowLeft, ListChecks, Search, X } from 'lucide-react';
 import LibraryCabin from '../components/LibraryCabin';
 import ShelfSheet from '../components/ShelfSheet';
 import SearchSheet from '../components/SearchSheet';
 import ReaderNav from '../components/ReaderNav';
+import ReturnLoanButton from '../components/ReturnLoanButton';
 import { createLibraryStreetScene } from '../city/libraryStreetScene';
 import { useAuth } from '../lib/AuthContext';
 import { useAction, useAsync } from '../lib/useAsync';
 import { itemToBook, matchesQuery } from '../lib/catalog';
-import { ITEM_STATUS_LABELS, LOAN_STATUS_LABELS, formatDate, isOverdue, requestAvailability } from '../lib/loanRules';
+import { BORROWED_SHELF } from '../lib/borrowedBooks';
+import { ITEM_STATUS_LABELS, canRequestReturn, formatDate, isOverdue, loanStatusLabel, requestAvailability } from '../lib/loanRules';
 import { genreOf, groupIntoShelves, plural } from '../services/genres';
-import { cancelLoan, listCatalog, listLibraries, listMyLoans, requestLoan } from '../services/publicLibraryApi';
+import { getLibraries } from '../services/libraryStore';
+import { cancelLoan, listCatalog, listLibraries, listMyLoans, requestLoan, requestReturn } from '../services/publicLibraryApi';
 import { NotConfigured } from '../pages/PlainParts';
 
 function Street({ libraries, onEnter }) {
@@ -49,6 +52,8 @@ function Street({ libraries, onEnter }) {
 
 function BookCard({ item, library, myLoans, onClose, onRequested }) {
   const [note, setNote] = useState('');
+  const [cabinId, setCabinId] = useState('');
+  const [cabins] = useState(() => getLibraries().filter((lib) => !lib.demo));
   const { busy, error, run } = useAction();
   const { canRequest, reason } = requestAvailability(item, library, myLoans);
   const facts = [
@@ -72,27 +77,41 @@ function BookCard({ item, library, myLoans, onClose, onRequested }) {
             {facts.map((fact) => <span key={fact}>{fact}</span>)}
           </div>
         </div>
-        {canRequest ? (
+        {canRequest && cabins.length === 0 && (
+          <p className="pub-message">
+            Nemáš žádnou vlastní chatu, kam by se kniha přesunula. <Link to="/">Založ si ji v Moje chata</Link>.
+          </p>
+        )}
+        {canRequest && cabins.length > 0 && (
           <form
             style={{ display: 'contents' }}
             onSubmit={async (e) => {
               e.preventDefault();
-              const ok = await run(() => requestLoan(item.id, note));
+              const ok = await run(() => requestLoan(item.id, note, cabinId));
               if (ok) onRequested(item);
               else onRequested(null);
             }}
           >
             <label>
+              Do které chaty se kniha přesune
+              <select value={cabinId} onChange={(e) => setCabinId(e.target.value)} required>
+                <option value="" disabled>Vyber chatu…</option>
+                {cabins.map((cabin) => (
+                  <option key={cabin.id} value={cabin.id}>{cabin.name}</option>
+                ))}
+              </select>
+              <small>Po schválení knihovníkem v ní vznikne polička {BORROWED_SHELF}.</small>
+            </label>
+            <label>
               Poznámka pro knihovníka (nepovinné)
               <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
             </label>
-            <button type="submit" className="dock-btn btn-ember" disabled={busy}>
+            <button type="submit" className="dock-btn btn-ember" disabled={busy || !cabinId}>
               {busy ? 'Odesílám…' : 'Požádat o půjčení'}
             </button>
           </form>
-        ) : (
-          <p className="pub-message">{reason}</p>
         )}
+        {!canRequest && <p className="pub-message">{reason}</p>}
         {error && <p className="pub-message is-error" role="alert">{error}</p>}
       </article>
     </div>
@@ -123,7 +142,7 @@ function MyLoans({ loans, loading, error, onRetry, onClose, onChanged }) {
                 <b>{loan.catalog_items?.title}</b>
                 <small>{loan.catalog_items?.libraries?.name}</small>
                 <small>
-                  {LOAN_STATUS_LABELS[loan.status]} · požádáno {formatDate(loan.requested_at)}
+                  {loanStatusLabel(loan)} · požádáno {formatDate(loan.requested_at)}
                 </small>
                 {loan.status === 'picked_up' && (
                   <small className={isOverdue(loan) ? 'is-late' : ''}>
@@ -145,6 +164,17 @@ function MyLoans({ loans, loading, error, onRetry, onClose, onChanged }) {
                   >
                     Zrušit žádost
                   </button>
+                )}
+                {canRequestReturn(loan) && (
+                  <ReturnLoanButton
+                    disabled={action.busy}
+                    onConfirm={() =>
+                      action.run(async () => {
+                        await requestReturn(loan.id);
+                        await onChanged();
+                      })
+                    }
+                  />
                 )}
               </li>
             ))}

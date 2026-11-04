@@ -16,6 +16,17 @@ export const ITEM_STATUS_LABELS = {
   unavailable: 'Vyřazeno'
 };
 
+/** Popis stavu pro čtenáře včetně nahlášeného vrácení. */
+export function loanStatusLabel(loan) {
+  return loan.return_requested_at && loan.status === 'picked_up'
+    ? 'Čeká, až knihovník potvrdí převzetí'
+    : LOAN_STATUS_LABELS[loan.status];
+}
+
+export function canRequestReturn(loan) {
+  return loan.status === 'picked_up' && !loan.return_requested_at;
+}
+
 export function isOverdue(loan, now = new Date()) {
   return loan.status === 'picked_up' && Boolean(loan.due_at) && new Date(loan.due_at) < now;
 }

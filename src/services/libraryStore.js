@@ -1,6 +1,7 @@
 import { cleanIsbnDigits } from './knihovnyApi';
 import { genreOf } from './genres';
 import { buildDemoLibrary, DEMO_LIBRARY_ID } from './demoLibrary';
+import { reconcileBorrowedBooks } from '../lib/borrowedBooks';
 
 const BOOKS_STORAGE_KEY = 'digitalniknihovna.books.v2';
 const LIBRARIES_STORAGE_KEY = 'digitalniknihovna.libraries.v2';
@@ -320,4 +321,11 @@ export function lendBook(id, borrower, lentAt) {
 
 export function returnBook(id) {
   return updateBook(id, { loan: null });
+}
+
+// Srovná knihy z knihovny v chatách se stavem výpůjček na serveru.
+export function syncBorrowedBooks(loans) {
+  const result = reconcileBorrowedBooks(readBooksRaw(), readLibraries(), loans);
+  if (result.changed) writeBooksRaw(result.books);
+  return result;
 }

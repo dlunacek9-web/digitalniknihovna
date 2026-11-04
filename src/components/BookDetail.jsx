@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { HandHelping, Pencil, Trash2, Undo2, X } from 'lucide-react';
+import { HandHelping, Landmark, Pencil, Trash2, Undo2, X } from 'lucide-react';
 import { bookColor, genreOf, isLightColor } from '../services/genres';
 import GenreField from './GenreField';
+import ReturnLoanButton from './ReturnLoanButton';
 import { OVERDUE_DAYS, daysSince, formatDays, formatLoanDate, todayIsoDate } from '../services/bookLoans';
+import { canRequestReturn, formatDate, isOverdue as isLoanOverdue, loanStatusLabel } from '../lib/loanRules';
 
 const STATUSES = [
   ['want', 'Chci číst'],
@@ -11,7 +13,7 @@ const STATUSES = [
 ];
 
 /** Detail knihy: obálka se natočí z hřbetu, pod ní stav čtení. */
-export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveToShelf, onClose, onStatusChange, onDelete, onLend, onReturn }) {
+export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveToShelf, onClose, onStatusChange, onDelete, onLend, onReturn, onRequestReturn }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [showLendForm, setShowLendForm] = useState(false);
@@ -38,6 +40,7 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
     setBorrower('');
   };
 
+  const borrowed = book.library_loan;
   const loanDays = book.loan ? daysSince(book.loan.lent_at) : 0;
   const isOverdue = loanDays > OVERDUE_DAYS;
   const color = bookColor(book);
@@ -122,7 +125,21 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
             ))}
           </div>
 
-          {book.loan ? (
+          {borrowed ? (
+            <div className={`loan-card ${isLoanOverdue(borrowed) ? 'is-overdue' : ''}`}>
+              <Landmark size={18} />
+              <div>
+                <b>Z knihovny{borrowed.library_name ? `: ${borrowed.library_name}` : ''}</b>
+                <span>
+                  {loanStatusLabel(borrowed)}
+                  {borrowed.due_at && ` · vrátit do ${formatDate(borrowed.due_at)}`}
+                </span>
+              </div>
+              {canRequestReturn(borrowed) && (
+                <ReturnLoanButton onConfirm={() => onRequestReturn(book)} />
+              )}
+            </div>
+          ) : book.loan ? (
             <div className={`loan-card ${isOverdue ? 'is-overdue' : ''}`}>
               <HandHelping size={18} />
               <div>
@@ -161,14 +178,16 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
             </p>
           )}
 
-          <button
-            type="button"
-            className={`text-btn ${confirmDelete ? 'is-danger' : ''}`}
-            onClick={() => (confirmDelete ? onDelete(book.id) : setConfirmDelete(true))}
-          >
-            <Trash2 size={14} />
-            {confirmDelete ? 'Opravdu odstranit z chaty?' : 'Odstranit knihu'}
-          </button>
+          {!borrowed && (
+            <button
+              type="button"
+              className={`text-btn ${confirmDelete ? 'is-danger' : ''}`}
+              onClick={() => (confirmDelete ? onDelete(book.id) : setConfirmDelete(true))}
+            >
+              <Trash2 size={14} />
+              {confirmDelete ? 'Opravdu odstranit z chaty?' : 'Odstranit knihu'}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -705,6 +705,7 @@ button.chip-glass { cursor: pointer; font-family: var(--sans); }
   color: #8f3f25;
   text-align: left;
 }
+.loan-card button + button { margin-left: 0; }
 .loan-card.is-overdue { background: #f3d2cd; color: #8a2a22; }
 .loan-card b { display: block; font: 500 15px var(--serif); }
 .loan-card span { font-size: 12px; opacity: 0.85; }

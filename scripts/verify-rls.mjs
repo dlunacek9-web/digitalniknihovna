@@ -253,7 +253,9 @@ async function main() {
   await as(adminA, 'update public.libraries set loans_enabled = true where id = $1', [libA.id]);
   await denied('přímý insert do loans je zakázán', reader1, `insert into public.loans (catalog_item_id, library_id, reader_id) values ($1, $2, $3)`, [item.id, libA.id, reader1], /permission denied/);
 
-  const loan = await one(reader1, 'select * from public.request_loan($1, $2)', [item.id, '  prosím  ']);
+  const loan = await one(reader1, 'select * from public.request_loan($1, $2, $3)', [item.id, '  prosím  ', ' lib_1 ']);
+  check('žádost si pamatuje zvolenou chatu', loan.cabin_id === 'lib_1');
+  await denied('vrácení nejde nahlásit před předáním', reader1, 'select public.request_return($1)', [loan.id], /Vrátit/);
   check('žádost patří volajícímu', loan.reader_id === reader1 && loan.status === 'requested' && loan.library_id === libA.id);
   check('poznámka je oříznutá', loan.note === 'prosím');
   await denied('druhý čtenář nepožádá o stejný výtisk', reader2, 'select public.request_loan($1)', [item.id], /už někdo/);
@@ -289,6 +291,14 @@ async function main() {
   check('předání změní výtisk na on_loan', (await itemStatus(item.id)) === 'on_loan');
   await denied('půjčený výtisk nejde žádat', reader2, 'select public.request_loan($1)', [item.id], /není dostupný/);
   await denied('knihovník jiné knihovny nevrátí', adminB, 'select public.return_loan($1)', [loan.id], /nebyla nalezena/);
+  await denied('cizí čtenář nenahlásí vrácení', reader2, 'select public.request_return($1)', [loan.id], /nebyla nalezena/);
+  await denied('knihovník nenahlásí vrácení za čtenáře', adminA, 'select public.request_return($1)', [loan.id], /nebyla nalezena/);
+  await denied('čtenář si nepotvrdí převzetí sám', reader1, 'select public.return_loan($1)', [loan.id], /nebyla nalezena/);
+  const returning = await one(reader1, 'select * from public.request_return($1)', [loan.id]);
+  check('nahlášené vrácení nemění stav výpůjčky', returning.status === 'picked_up' && returning.return_requested_at !== null);
+  check('nahlášené vrácení nechá výtisk půjčený', (await itemStatus(item.id)) === 'on_loan');
+  check('knihovník vidí nahlášené vrácení', (await one(staffA, 'select return_requested_at from public.loans where id = $1', [loan.id])).return_requested_at !== null);
+  await denied('vrácení nejde nahlásit dvakrát', reader1, 'select public.request_return($1)', [loan.id], /už je požádáno/);
 
   const returned = await one(adminA, 'select * from public.return_loan($1)', [loan.id]);
   check('vrácení uloží čas', returned.status === 'returned' && returned.returned_at !== null);
