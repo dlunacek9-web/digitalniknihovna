@@ -52,6 +52,18 @@ export async function addCatalogItem(libraryId, row) {
   return unwrap(await supabase.from('catalog_items').insert({ ...row, library_id: libraryId }).select().single());
 }
 
+/** Vloží víc výtisků po dávkách po 500. Každá dávka se uloží celá, nebo vůbec. */
+export async function addCatalogItems(libraryId, rows) {
+  if (!rows.length) return [];
+  const CHUNK = 500;
+  const saved = [];
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const part = rows.slice(i, i + CHUNK).map((row) => ({ ...row, library_id: libraryId }));
+    saved.push(...unwrap(await supabase.from('catalog_items').insert(part).select()));
+  }
+  return saved;
+}
+
 export async function updateCatalogItem(id, row) {
   return unwrap(await supabase.from('catalog_items').update(row).eq('id', id).select().single());
 }

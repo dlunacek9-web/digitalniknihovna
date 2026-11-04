@@ -10,6 +10,9 @@ const TARGET_ZOOM = 1.7;
 export const FRAME_W = 0.8;
 export const FRAME_H = 0.4;
 const MAX_DECODE_WIDTH = 1280;
+// Průběžné skenování: pauza po každém přečtení a doba, po kterou se stejný kód v záběru nepočítá znovu
+const SCAN_PAUSE_MS = 700;
+const REPEAT_BLOCK_MS = 2000;
 
 let detectorPromise;
 export function getDetector() {
@@ -88,9 +91,11 @@ export async function detectCode(detector, canvas, accept = toValidBookCode) {
 
 /**
  * Kamera se čtením čárového kódu. První platný kód předá do `onCode` a kameru vypne.
+ * S `continuous` kamera běží dál a každý kód předá znovu. Stejný kód, který zůstává
+ * v záběru, se počítá jen jednou; další výtisk se započítá, až kód ze záběru zmizí.
  * `paused` zastaví jen čtení čárového kódu, náhled i `grabFrame` běží dál.
  */
-export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = false }) {
+export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = false, continuous = false }) {
   const videoRef = useRef(null);
   const boxRef = useRef(null);
   const streamRef = useRef(null);
@@ -102,6 +107,8 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
   acceptRef.current = accept;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  const continuousRef = useRef(continuous);
+  continuousRef.current = continuous;
 
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermissionError, setHasPermissionError] = useState(false);
@@ -203,6 +210,7 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
 
         // Decode fresh frames continuously; the first valid code is used immediately.
         let attempt = 0;
+        let last = { code: '', at: 0 };
         while (!cancelled && !hasFinished.current) {
           if (!pausedRef.current && videoEl.readyState >= 2 && boxRef.current) {
             // Mostly the guide frame (fast, sharp), sometimes the whole visible area
@@ -218,8 +226,17 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
             if (canvas) {
               const code = await detectCode(detector, canvas, acceptRef.current);
               if (code && !cancelled) {
-                finishWithCode(code);
-                return;
+                if (!continuousRef.current) {
+                  finishWithCode(code);
+                  return;
+                }
+                const now = Date.now();
+                const repeat = code === last.code && now - last.at < REPEAT_BLOCK_MS;
+                last = { code, at: now };
+                if (!repeat) {
+                  onCodeRef.current(code);
+                  await wait(SCAN_PAUSE_MS);
+                }
               }
             }
           }

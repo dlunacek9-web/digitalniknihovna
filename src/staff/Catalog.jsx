@@ -13,8 +13,11 @@ import {
 } from '../lib/catalog';
 import { ITEM_STATUS_LABELS } from '../lib/loanRules';
 import { plural } from '../services/genres';
-import { deleteCatalogItem, listCatalog, setItemStatus } from '../services/publicLibraryApi';
+import { buildCatalogCsv, catalogCsvFileName, parseCatalogCsv } from '../lib/catalogCsv';
+import { downloadFile } from '../services/libraryBackup';
+import { addCatalogItems, deleteCatalogItem, listCatalog, setItemStatus } from '../services/publicLibraryApi';
 import { ConfirmButton, LoadState } from '../pages/PlainParts';
+import BulkScan from './BulkScan';
 import ItemForm from './ItemForm';
 
 const TAG_CLASS = { available: 'is-ok', reserved: 'is-warn', on_loan: 'is-warn', unavailable: 'is-off' };
@@ -34,6 +37,10 @@ export default function Catalog() {
   const [formState, setFormState] = useState(null); // null | { key, editing, preset, heading }
   const formKey = useRef(0);
   const action = useAction();
+  const [bulk, setBulk] = useState(false);
+  const [importPlan, setImportPlan] = useState(null); // null | { fileName, rows, errors }
+  const [notice, setNotice] = useState('');
+  const importAction = useAction();
 
   const allItems = data ?? [];
   const groups = useMemo(() => analyzeCatalog(allItems), [data]);
@@ -60,6 +67,28 @@ export default function Catalog() {
     });
   };
 
+  const exportCsv = () => {
+    downloadFile(catalogCsvFileName(), buildCatalogCsv(allItems), 'text/csv;charset=utf-8');
+  };
+
+  const chooseImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setNotice('');
+    importAction.clearError();
+    setImportPlan({ fileName: file.name, ...parseCatalogCsv(await file.text(), allItems) });
+  };
+
+  const runImport = () => {
+    importAction.run(async () => {
+      await addCatalogItems(library.id, importPlan.rows.map((entry) => entry.row));
+      setNotice(`Naimportováno ${importPlan.rows.length} ${plural(importPlan.rows.length, 'výtisk', 'výtisky', 'výtisků')}.`);
+      setImportPlan(null);
+      await reload();
+    });
+  };
+
   const removeItem = (item) => {
     action.run(async () => {
       await deleteCatalogItem(item.id);
@@ -72,10 +101,76 @@ export default function Catalog() {
     <>
       <header className="staff-head">
         <h1>Katalog</h1>
-        <button type="button" className="plain-btn plain-btn--primary" onClick={() => openForm()}>
-          Přidat výtisk
-        </button>
+        <div className="plain-actions">
+          <button type="button" className="plain-btn" disabled={!allItems.length} onClick={exportCsv}>
+            Exportovat tabulku
+          </button>
+          <label className="plain-btn">
+            Importovat tabulku
+            <input type="file" accept=".csv,text/csv" className="staff-visually-hidden" onChange={chooseImportFile} />
+          </label>
+          <button
+            type="button"
+            className="plain-btn"
+            onClick={() => {
+              setFormState(null);
+              setNotice('');
+              setBulk(true);
+            }}
+          >
+            Hromadné skenování
+          </button>
+          <button type="button" className="plain-btn plain-btn--primary" onClick={() => { setBulk(false); openForm(); }}>
+            Přidat výtisk
+          </button>
+        </div>
       </header>
+
+      {notice && <p className="plain-notice" role="status" style={{ marginBottom: 12 }}>{notice}</p>}
+
+      {bulk && (
+        <BulkScan
+          libraryId={library.id}
+          onClose={() => setBulk(false)}
+          onSaved={(count) => {
+            setBulk(false);
+            setNotice(`Uloženo ${count} ${plural(count, 'výtisk', 'výtisky', 'výtisků')}.`);
+            reload();
+          }}
+        />
+      )}
+
+      {importPlan && (
+        <section className="staff-panel" aria-label="Import tabulky">
+          <h2>Import: {importPlan.fileName}</h2>
+          <p>
+            K importu je {importPlan.rows.length} {plural(importPlan.rows.length, 'výtisk', 'výtisky', 'výtisků')}
+            {importPlan.errors.length > 0 && `, ${importPlan.errors.length} ř. s chybou se přeskočí`}.
+          </p>
+          {importPlan.errors.length > 0 && (
+            <ul className="plain-warn staff-similar" role="status">
+              {importPlan.errors.slice(0, 20).map((err) => (
+                <li key={`${err.line}-${err.message}`}>{err.line ? `Řádek ${err.line}: ` : ''}{err.message}</li>
+              ))}
+              {importPlan.errors.length > 20 && <li>… a dalších {importPlan.errors.length - 20}</li>}
+            </ul>
+          )}
+          {importAction.error && <p className="plain-error" role="alert">{importAction.error}</p>}
+          <div className="plain-actions">
+            <button
+              type="button"
+              className="plain-btn plain-btn--primary"
+              disabled={importAction.busy || importPlan.rows.length === 0}
+              onClick={runImport}
+            >
+              {importAction.busy ? 'Importuji…' : `Importovat ${importPlan.rows.length}`}
+            </button>
+            <button type="button" className="plain-btn" disabled={importAction.busy} onClick={() => setImportPlan(null)}>
+              Zrušit
+            </button>
+          </div>
+        </section>
+      )}
 
       {formState && (
         <ItemForm
