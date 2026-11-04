@@ -9,6 +9,7 @@ import ProfileView from './components/ProfileView';
 import BookPreviewModal from './components/BookPreviewModal';
 import ManualBookEntryModal from './components/ManualBookEntryModal';
 import Tutorial from './components/Tutorial';
+import ReaderNav from './components/ReaderNav';
 import { lookupByIsbn, toIsbn13 } from './services/knihovnyApi';
 import {
   addBook,
@@ -426,10 +427,13 @@ export default function App() {
                 {activeLibrary?.name || 'Knihovna'} <ChevronDown size={14} />
               </button>
             </div>
-            <button type="button" className="chip-glass" onClick={() => setActiveTab('profile')} aria-label="Profil">
-              <User size={16} />
-              <span>Profil</span>
-            </button>
+            <div className="cabin-header__side">
+              <ReaderNav />
+              <button type="button" className="chip-glass" onClick={() => setActiveTab('profile')} aria-label="Profil">
+                <User size={16} />
+                <span>Profil</span>
+              </button>
+            </div>
           </header>
 
           {books.length === 0 && (
