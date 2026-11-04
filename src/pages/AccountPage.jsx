@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { useAction } from '../lib/useAsync';
 import { createLibrary, redeemInvite } from '../services/publicLibraryApi';
 import { NotConfigured, PageLoading } from './PlainParts';
+import PasswordForm from './PasswordForm';
 import '../styles/plain.css';
 
 function CreateLibraryForm({ onDone }) {
@@ -72,8 +73,6 @@ function RedeemInviteForm({ onDone }) {
   );
 }
 
-const MIN_PASSWORD = 8;
-
 function ProfileForm() {
   const { user, displayName, updateName, updateEmail } = useAuth();
   const [name, setName] = useState(user.user_metadata?.name || '');
@@ -119,47 +118,6 @@ function ProfileForm() {
   );
 }
 
-function PasswordForm() {
-  const { updatePassword } = useAuth();
-  const [password, setPassword] = useState('');
-  const [again, setAgain] = useState('');
-  const [message, setMessage] = useState('');
-  const { busy, error, run } = useAction();
-
-  return (
-    <form
-      className="plain-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setMessage('');
-        run(async () => {
-          if (password.length < MIN_PASSWORD) throw new Error(`Heslo musí mít aspoň ${MIN_PASSWORD} znaků.`);
-          if (password !== again) throw new Error('Hesla se neshodují.');
-          await updatePassword(password);
-          setPassword('');
-          setAgain('');
-          setMessage('Heslo je změněné.');
-        });
-      }}
-    >
-      <h2>Změna hesla</h2>
-      <label>
-        Nové heslo
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
-      </label>
-      <label>
-        Nové heslo znovu
-        <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} required autoComplete="new-password" />
-      </label>
-      {error && <p className="plain-error" role="alert">{error}</p>}
-      {message && <p className="plain-muted" role="status">{message}</p>}
-      <button type="submit" className="plain-btn" disabled={busy}>
-        {busy ? 'Ukládám…' : 'Změnit heslo'}
-      </button>
-    </form>
-  );
-}
-
 function DeleteAccount() {
   const { user, deleteAccount } = useAuth();
   const navigate = useNavigate();
@@ -172,7 +130,7 @@ function DeleteAccount() {
     return (
       <div className="plain-form">
         <h2>Smazat účet</h2>
-        <p className="plain-muted">Účet i historie tvých výpůjček se nadobro smažou. Chaty v tomto prohlížeči zůstanou.</p>
+        <p className="plain-muted">Účet se nadobro smaže i s tvými chatami, knihami v nich a historií výpůjček.</p>
         <button type="button" className="plain-btn plain-btn--danger" onClick={() => setOpen(true)}>
           Smazat účet…
         </button>

@@ -10,6 +10,24 @@ const StaffApp = lazy(() => import('./staff/StaffApp.jsx'));
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'));
 const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
+const NewPasswordPage = lazy(() => import('./pages/NewPasswordPage.jsx'));
+
+// Po odkazu pro obnovu hesla je uživatel přihlášený, ale nejdřív si má nastavit nové heslo.
+function AppRoutes() {
+  const { passwordRecovery } = useAuth();
+  if (passwordRecovery) return <NewPasswordPage />;
+  return (
+    <Routes>
+      <Route path="/" element={<RequireAccount><App /></RequireAccount>} />
+      <Route path="/knihovny" element={<PublicLibraries />} />
+      <Route path="/prihlaseni" element={<AuthPage />} />
+      <Route path="/ucet" element={<AccountPage />} />
+      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/knihovnik/*" element={<StaffApp />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
 // Bez účtu se do chaty nedostane nikdo: knihy patří k účtu.
 function RequireAccount({ children }) {
@@ -36,15 +54,7 @@ export default function Root() {
     <AuthProvider>
       <HashRouter>
         <Suspense fallback={<div className="route-loading">Načítám…</div>}>
-          <Routes>
-            <Route path="/" element={<RequireAccount><App /></RequireAccount>} />
-            <Route path="/knihovny" element={<PublicLibraries />} />
-            <Route path="/prihlaseni" element={<AuthPage />} />
-            <Route path="/ucet" element={<AccountPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/knihovnik/*" element={<StaffApp />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AppRoutes />
         </Suspense>
       </HashRouter>
     </AuthProvider>

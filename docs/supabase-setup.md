@@ -71,6 +71,8 @@ V **Authentication → URL Configuration**:
 1. **Site URL** nastav na adresu aplikace na GitHub Pages, tedy `https://<účet>.github.io/digitalniknihovna/`.
 2. Do **Redirect URLs** přidej i `http://localhost:3000/digitalniknihovna/` pro lokální vývoj.
 
+Na stejné adresy se vrací i odkaz z **Zapomenuté heslo**. Odkaz funguje jen v prohlížeči, ve kterém si ho uživatel vyžádal (PKCE). Email posílá Supabase, takže pro něj platí stejný limit vestavěného odesílání jako pro potvrzení registrace.
+
 ## 5. Klíče a lokální konfigurace
 
 1. Otevři **Settings → API Keys**.

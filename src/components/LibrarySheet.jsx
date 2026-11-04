@@ -9,6 +9,9 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
   const [editName, setEditName] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  // Ukázková chata se nepočítá, vlastní musí zůstat aspoň jedna.
+  const hasSingleOwn = libraries.filter((lib) => !lib.demo).length <= 1;
+
   const submitCreate = (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -40,17 +43,14 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
             if (editingId === lib.id) {
               return (
                 <li key={lib.id}>
-                  {libraries.length <= 1 && (
-          <p className="library-sheet__warning">Poslední knihovnu nelze smazat. Nejdřív postav novou.</p>
-        )}
-
-        <form className="library-sheet__form" onSubmit={submitRename}>
+                  <form className="library-sheet__form" onSubmit={submitRename}>
                     <input value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Nový název" autoFocus />
                     <button type="submit" disabled={!editName.trim()}>Uložit</button>
                   </form>
                 </li>
               );
             }
+            const isLastOwn = !lib.demo && hasSingleOwn;
             return (
               <li key={lib.id} className={`library-sheet__row ${lib.id === activeId ? 'is-active' : ''}`}>
                 <button type="button" onClick={() => onSelect(lib.id)}>
@@ -74,9 +74,9 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
                 <button
                   type="button"
                   className={`icon-btn is-danger`}
-                  disabled={libraries.length <= 1}
+                  disabled={isLastOwn}
                   aria-label={confirmDeleteId === lib.id ? `Opravdu smazat ${lib.name}` : `Smazat ${lib.name}`}
-                  title={libraries.length <= 1 ? 'Poslední knihovnu nelze smazat, nejdřív vytvoř novou' : confirmDeleteId === lib.id ? 'Klikni znovu: smaže knihovnu i všechny knihy v ní' : 'Smazat'}
+                  title={isLastOwn ? 'Poslední knihovnu nelze smazat, nejdřív vytvoř novou' : confirmDeleteId === lib.id ? 'Klikni znovu: smaže knihovnu i všechny knihy v ní' : 'Smazat'}
                   onClick={() => {
                     if (confirmDeleteId === lib.id) {
                       onDelete(lib.id);
@@ -95,6 +95,9 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
         </ul>
         {confirmDeleteId && (
           <p className="library-sheet__warning">Druhým klepnutím na koš smažeš knihovnu i všechny knihy v ní.</p>
+        )}
+        {!confirmDeleteId && hasSingleOwn && (
+          <p className="library-sheet__warning">Poslední knihovnu nelze smazat. Nejdřív postav novou.</p>
         )}
 
         <form className="library-sheet__form" onSubmit={submitCreate}>

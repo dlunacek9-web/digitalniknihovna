@@ -18,12 +18,15 @@ export function AuthProvider({ children }) {
   const [storeReady, setStoreReady] = useState(false);
   const [storeError, setStoreError] = useState('');
   const [storeAttempt, setStoreAttempt] = useState(0);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     if (!supabase) return undefined;
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setSessionKnown(true);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
     });
     return () => data.subscription.unsubscribe();
   }, []);
@@ -86,6 +89,15 @@ export function AuthProvider({ children }) {
       memberships,
       membershipsError,
       refreshMemberships,
+      passwordRecovery,
+      finishPasswordRecovery: () => setPasswordRecovery(false),
+      // Odkaz z emailu musí uživatel otevřít ve stejném prohlížeči (PKCE).
+      async requestPasswordReset(email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}${window.location.pathname}`
+        });
+        if (error) throw new Error(toCzechMessage(error));
+      },
       async signIn(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw new Error(toCzechMessage(error));
@@ -143,7 +155,7 @@ export function AuthProvider({ children }) {
         if (error) throw new Error(toCzechMessage(error));
       }
     }),
-    [sessionKnown, userId, user, membershipsReady, storeReady, storeError, reloadStore, memberships, membershipsError, refreshMemberships]
+    [sessionKnown, userId, user, membershipsReady, storeReady, storeError, reloadStore, memberships, membershipsError, refreshMemberships, passwordRecovery]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

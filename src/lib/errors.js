@@ -2,6 +2,7 @@ const AUTH_MESSAGES = [
   [/invalid login credentials/i, 'Špatný email nebo heslo.'],
   [/user already registered|already been registered/i, 'Účet s tímto emailem už existuje.'],
   [/email not confirmed/i, 'Nejdřív potvrď email odkazem ze zprávy.'],
+  [/password should be different|different from the old password/i, 'Nové heslo musí být jiné než to dosavadní.'],
   [/password should be|weak.?password/i, 'Heslo je příliš slabé. Použij aspoň 8 znaků.'],
   [/rate limit|too many requests/i, 'Příliš mnoho pokusů. Zkus to za chvíli.'],
   [/signups? (are |is )?(not allowed|disabled)/i, 'Registrace jsou vypnuté.'],
