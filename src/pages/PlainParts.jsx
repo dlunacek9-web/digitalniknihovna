@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 
 export function NotConfigured() {
   return (
     <main className="plain plain--center">
       <section className="plain-card plain-card--narrow">
         <h1>Knihovny nejsou nastavené</h1>
-        <p>Aplikace zatím není připojená k databázi. Domácí chata funguje dál.</p>
-        <Link className="plain-link" to="/">Zpět do chaty</Link>
+        <p>Aplikace zatím není připojená k databázi, a bez ní nejde přihlásit.</p>
       </section>
     </main>
   );

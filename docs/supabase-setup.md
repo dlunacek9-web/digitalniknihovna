@@ -26,6 +26,7 @@ Spusť soubory ze složky `supabase/migrations/` přesně v tomto pořadí. Kaž
 3. Stejně spusť `20261104000200_rls.sql`.
 4. Stejně spusť `20261104000300_rpc.sql`.
 5. Stejně spusť `20261104000400_loan_cabin_and_return.sql`.
+6. Stejně spusť další soubory ve složce v pořadí podle názvu.
 
 Pokud některý soubor skončí chybou, nepokračuj dalším a pošli mi text chyby.
 
@@ -57,6 +58,13 @@ V **Authentication → Sign In / Providers**:
 3. Rozhodni o **Confirm email**:
    - Vypnuto: žák se přihlásí hned. Registrovat se ale může i neexistující adresa. Pro školní projekt je to nejjednodušší volba.
    - Zapnuto: adresa se ověří, ale vestavěné odesílání má nízký limit, takže hromadná registrace třídy může narazit. Pro větší objem by bylo potřeba vlastní SMTP.
+
+### Přihlášení přes Google
+
+1. V [Google Cloud Console](https://console.cloud.google.com) otevři **APIs & Services → Credentials → Create credentials → OAuth client ID** (typ **Web application**). Případně nejdřív nastav **OAuth consent screen**.
+2. Do **Authorized redirect URIs** vlož **Callback URL**, který ukazuje Supabase v **Authentication → Sign In / Providers → Google** (tvar `https://<projekt>.supabase.co/auth/v1/callback`).
+3. Zkopíruj **Client ID** a **Client secret** do téhož okna v Supabase, zapni **Enable Sign in with Google** a ulož. Client secret patří jen do Supabase, nikdy do aplikace ani repozitáře.
+4. Každá aplikace vyžaduje účet, takže registrace přes Google funguje stejně jako registrace emailem.
 
 V **Authentication → URL Configuration**:
 

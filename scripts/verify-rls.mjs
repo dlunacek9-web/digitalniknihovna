@@ -351,6 +351,22 @@ async function main() {
   await noRows('odebraný zaměstnanec nezmění katalog', staffA, `update public.catalog_items set title = 'x' where id = $1 returning id`, [item.id]);
   check('odebraný zaměstnanec zůstává čtenářem', (await as(staffA, 'select id from public.catalog_items')).length === 3);
 
+  console.log('Osobní chaty');
+  const cabin = await one(reader1, `insert into public.cabins (user_id, name) values ($1, 'Moje') returning *`, [reader1]);
+  const ownBook = await one(reader1, `insert into public.cabin_books (cabin_id, user_id, title, data) values ($1, $2, 'Hobit', '{"genre":"Fantasy"}') returning *`, [cabin.id, reader1]);
+  check('čtenář vidí svou chatu a knihu', (await as(reader1, 'select id from public.cabin_books')).length === 1);
+  check('cizí čtenář nevidí chatu', (await as(reader2, 'select id from public.cabins')).length === 0);
+  check('cizí čtenář nevidí knihy', (await as(reader2, 'select id from public.cabin_books')).length === 0);
+  check('knihovník nevidí osobní knihy', (await as(staffA, 'select id from public.cabin_books')).length === 0);
+  await denied('nejde založit chatu cizímu účtu', reader2, `insert into public.cabins (user_id, name) values ($1, 'x')`, [reader1], /row-level security/);
+  await denied('nejde vložit knihu do cizí chaty', reader2, `insert into public.cabin_books (cabin_id, user_id, title) values ($1, $2, 'x')`, [cabin.id, reader2], /row-level security/);
+  await denied('anon nevidí chaty', null, 'select * from public.cabins', [], /permission denied/);
+  await noRows('cizí čtenář nezmění knihu', reader2, `update public.cabin_books set title = 'x' where id = $1 returning id`, [ownBook.id]);
+  await noRows('cizí čtenář nesmaže knihu', reader2, `delete from public.cabin_books where id = $1 returning id`, [ownBook.id]);
+  check('čtenář uloží nastavení', (await one(reader1, `update public.profiles set settings = '{"active_cabin":"x"}' where id = $1 returning settings`, [reader1])).settings.active_cabin === 'x');
+  await as(reader1, 'delete from public.cabins where id = $1', [cabin.id]);
+  check('smazání chaty smaže její knihy', (await db.query('select 1 from public.cabin_books where id = $1', [ownBook.id])).rows.length === 0);
+
   console.log('Správce aplikace');
   const owner = await createUser('Daniel');
   await db.query(`update auth.users set email = 'daniel@lunacek.cz', email_confirmed_at = now() where id = $1`, [owner]);

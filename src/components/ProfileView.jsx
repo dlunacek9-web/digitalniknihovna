@@ -2,11 +2,13 @@ import React, { useRef } from 'react';
 import { User, Sparkles, Download, Upload, FileSpreadsheet, Bookmark, Award, ShieldCheck } from 'lucide-react';
 import LibraryStats from './LibraryStats';
 import LoansList from './LoansList';
+import { useAuth } from '../lib/AuthContext';
 import { exportLibraryData, importLibraryData } from '../services/libraryStore';
 import { buildJsonBackup, buildCsv, parseJsonBackup, backupFileName, downloadFile } from '../services/libraryBackup';
 
 export default function ProfileView({ books, onDataImported, showNotification, onReturnBook, onOpenBook }) {
   const fileInputRef = useRef(null);
+  const { displayName, user } = useAuth();
 
   const handleExportJson = () => {
     downloadFile(backupFileName('json'), buildJsonBackup(exportLibraryData()), 'application/json');
@@ -24,7 +26,7 @@ export default function ProfileView({ books, onDataImported, showNotification, o
     if (!file) return;
 
     try {
-      const result = importLibraryData(parseJsonBackup(await file.text()));
+      const result = await importLibraryData(parseJsonBackup(await file.text()));
       onDataImported();
       const skipped = result.booksSkipped ? `, ${result.booksSkipped} už v knihovně bylo` : '';
       showNotification(`Importováno ${result.booksAdded} knih${skipped}.`);
@@ -41,16 +43,16 @@ export default function ProfileView({ books, onDataImported, showNotification, o
       {/* Profile Card */}
       <div className="bg-white rounded-3xl p-5 border border-stone-200/80 shadow-sm flex items-center space-x-4">
         <div className="w-14 h-14 rounded-2xl bg-burgundy-900 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-burgundy-900/20">
-          U
+          {(displayName || 'U').trim().charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-1.5">
-            <h2 className="font-bold text-stone-900 text-base">Uživatel (Demo)</h2>
+            <h2 className="font-bold text-stone-900 text-base">{user?.user_metadata?.name || displayName}</h2>
             <ShieldCheck className="w-4 h-4 text-burgundy-900" />
           </div>
-          <p className="text-stone-500 text-xs">Osobní účet knihovny</p>
+          <p className="text-stone-500 text-xs truncate">{user?.email || 'Osobní účet knihovny'}</p>
           <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-stone-100 text-stone-600 text-[10px] font-semibold rounded-full">
-            Lokální synchronizace
+            Uloženo v účtu
           </span>
         </div>
       </div>
@@ -66,7 +68,7 @@ export default function ProfileView({ books, onDataImported, showNotification, o
         </h3>
         <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-sm">
           <p className="text-[11px] text-stone-500 mb-3">
-            Knihy jsou uložené jen v tomto prohlížeči. Stáhni si zálohu a nahraj ji na jiném zařízení.
+            Knihy se ukládají k tvému účtu a najdeš je na každém zařízení. Zálohu si můžeš stáhnout nebo nahrát.
           </p>
           <div className="grid grid-cols-3 gap-2.5">
             <button type="button" onClick={handleExportJson} className={backupButtonClass}>

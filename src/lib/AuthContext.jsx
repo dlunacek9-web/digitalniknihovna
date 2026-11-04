@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './supabase';
 import { toCzechMessage, unwrap } from './errors';
+import { loadLibraryStore, resetLibraryStore } from '../services/libraryStore';
 
 const AuthContext = createContext(null);
 
@@ -14,6 +15,9 @@ export function AuthProvider({ children }) {
   const [memberships, setMemberships] = useState([]);
   const [membershipsReady, setMembershipsReady] = useState(false);
   const [membershipsError, setMembershipsError] = useState('');
+  const [storeReady, setStoreReady] = useState(false);
+  const [storeError, setStoreError] = useState('');
+  const [storeAttempt, setStoreAttempt] = useState(0);
 
   useEffect(() => {
     if (!supabase) return undefined;
@@ -47,6 +51,25 @@ export function AuthProvider({ children }) {
     }
   }, [userId]);
 
+  // Chaty a knihy čtenáře se načtou z účtu hned po přihlášení.
+  useEffect(() => {
+    setStoreReady(false);
+    setStoreError('');
+    if (!userId) {
+      resetLibraryStore();
+      return undefined;
+    }
+    let alive = true;
+    loadLibraryStore(userId)
+      .catch((err) => alive && setStoreError(err.message || 'Knihy se nepodařilo načíst.'))
+      .finally(() => alive && setStoreReady(true));
+    return () => {
+      alive = false;
+    };
+  }, [userId, storeAttempt]);
+
+  const reloadStore = useCallback(() => setStoreAttempt((n) => n + 1), []);
+
   useEffect(() => {
     setMembershipsReady(false);
     refreshMemberships();
@@ -55,7 +78,9 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       configured: isSupabaseConfigured,
-      loading: !sessionKnown || (Boolean(userId) && !membershipsReady),
+      loading: !sessionKnown || (Boolean(userId) && !(membershipsReady && storeReady)),
+      storeError,
+      reloadStore,
       user,
       displayName: user?.user_metadata?.name || user?.email || '',
       memberships,
@@ -63,6 +88,14 @@ export function AuthProvider({ children }) {
       refreshMemberships,
       async signIn(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw new Error(toCzechMessage(error));
+      },
+      // Přesměruje na Google; po návratu Supabase sám dokončí přihlášení (PKCE).
+      async signInWithGoogle() {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}${window.location.pathname}` }
+        });
         if (error) throw new Error(toCzechMessage(error));
       },
       // Vrací true, když je potřeba nejdřív potvrdit email.
@@ -110,7 +143,7 @@ export function AuthProvider({ children }) {
         if (error) throw new Error(toCzechMessage(error));
       }
     }),
-    [sessionKnown, userId, user, membershipsReady, memberships, membershipsError, refreshMemberships]
+    [sessionKnown, userId, user, membershipsReady, storeReady, storeError, reloadStore, memberships, membershipsError, refreshMemberships]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

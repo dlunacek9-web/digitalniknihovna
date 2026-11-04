@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useAuth } from '../lib/AuthContext';
 import { useAction } from '../lib/useAsync';
 import { NotConfigured } from './PlainParts';
@@ -9,11 +9,11 @@ const MIN_PASSWORD = 8;
 
 /** Vrací jen vnitřní cestu, aby odkaz nemohl přesměrovat na cizí web. */
 function safeNext(value) {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/ucet';
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
 }
 
 export default function AuthPage() {
-  const { configured, loading, user, signIn, signUp } = useAuth();
+  const { configured, loading, user, signIn, signUp, signInWithGoogle } = useAuth();
   const [params] = useSearchParams();
   const [mode, setMode] = useState('login');
   const [name, setName] = useState('');
@@ -75,6 +75,19 @@ export default function AuthPage() {
             </button>
           </form>
         )}
+        {!needsConfirm && (
+          <>
+            <p className="plain-muted" style={{ textAlign: 'center', margin: 0 }}>nebo</p>
+            <button
+              type="button"
+              className="plain-btn"
+              disabled={busy}
+              onClick={() => run(signInWithGoogle)}
+            >
+              Pokračovat přes Google
+            </button>
+          </>
+        )}
         <button
           type="button"
           className="plain-link"
@@ -86,7 +99,6 @@ export default function AuthPage() {
         >
           {isSignup ? 'Už mám účet, přihlásit se' : 'Nemám účet, zaregistrovat se'}
         </button>
-        <Link className="plain-link" to="/">Zpět do chaty</Link>
       </section>
     </main>
   );

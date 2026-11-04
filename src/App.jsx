@@ -25,7 +25,9 @@ import {
   updateBook,
   moveBookToShelf,
   renameShelf,
-  syncBorrowedBooks
+  syncBorrowedBooks,
+  getSetting,
+  saveSettings
 } from './services/libraryStore';
 import { genreOf, groupIntoShelves, plural } from './services/genres';
 import { listMyLoans, requestReturn } from './services/publicLibraryApi';
@@ -62,15 +64,9 @@ export default function App() {
   const [manualEntryIsbn, setManualEntryIsbn] = useState(null);
   const [isDuplicateAlert, setIsDuplicateAlert] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [keepScanning, setKeepScanning] = useState(() => {
-    try {
-      return localStorage.getItem('digitalniknihovna.keep_scanning.v1') === '1';
-    } catch {
-      return false;
-    }
-  });
+  const [keepScanning, setKeepScanning] = useState(() => getSetting('keep_scanning', false) === true);
 
-  // GitHub Pages is static, so the personal library is persisted locally in this browser.
+  // Knihy a chaty jsou v paměti po načtení z účtu; zápisy jdou do databáze.
   const refresh = () => {
     try {
       setLibraries(getLibraries());
@@ -78,7 +74,7 @@ export default function App() {
       setAllBooks(listBooks(null));
     } catch (err) {
       console.error('Error fetching books:', err);
-      showNotification('Nepodařilo se načíst knihy', 'Úložiště prohlížeče neodpovídá.', 'error');
+      showNotification('Nepodařilo se načíst knihy', 'Zkus to prosím znovu.', 'error');
     }
   };
 
@@ -96,7 +92,7 @@ export default function App() {
   const syncLoans = useCallback(async () => {
     if (!userId) return;
     try {
-      const { added, removed, changed } = syncBorrowedBooks(await listMyLoans(userId));
+      const { added, removed, changed } = await syncBorrowedBooks(await listMyLoans(userId));
       if (!changed) return;
       refresh();
       if (added.length > 0) {
@@ -131,7 +127,7 @@ export default function App() {
   };
 
   const books = useMemo(
-    () => allBooks.filter((b) => (b.library_id || 'lib_default_1') === activeLibraryId),
+    () => allBooks.filter((b) => b.library_id === activeLibraryId),
     [allBooks, activeLibraryId]
   );
   const shelves = useMemo(() => groupIntoShelves(books), [books]);
@@ -147,14 +143,14 @@ export default function App() {
   const libraryCounts = useMemo(() => {
     const counts = {};
     for (const b of allBooks) {
-      const id = b.library_id || 'lib_default_1';
+      const id = b.library_id;
       counts[id] = (counts[id] || 0) + 1;
     }
     return counts;
   }, [allBooks]);
   const scanTargetId = targetScanLibraryId || activeLibraryId || '';
   const scanTargetGenres = useMemo(
-    () => groupIntoShelves(allBooks.filter((b) => (b.library_id || 'lib_default_1') === scanTargetId)).map((s) => s.genre),
+    () => groupIntoShelves(allBooks.filter((b) => b.library_id === scanTargetId)).map((s) => s.genre),
     [allBooks, scanTargetId]
   );
   const activeLibrary = libraries.find((l) => l.id === activeLibraryId);
@@ -188,30 +184,42 @@ export default function App() {
     setSearchQuery('');
   };
 
-  const handleCreateLibrary = (name) => {
-    const created = addLibrary(name);
-    switchLibrary(created.id);
-    refresh();
-    setLibrariesOpen(false);
-    showNotification(`Nová chata · ${created.name}`, 'Zatím prázdná, poličky přibudou s knihami.');
-  };
-
-  const handleRenameLibrary = (id, name) => {
-    if (renameLibrary(id, name)) {
+  const handleCreateLibrary = async (name) => {
+    try {
+      const created = await addLibrary(name);
+      switchLibrary(created.id);
       refresh();
-      showNotification('Knihovna přejmenována', name);
-    } else {
-      showNotification('Nepodařilo se přejmenovat knihovnu', '', 'error');
+      setLibrariesOpen(false);
+      showNotification(`Nová chata · ${created.name}`, 'Zatím prázdná, poličky přibudou s knihami.');
+    } catch (err) {
+      showNotification('Chatu se nepodařilo založit', err.message, 'error');
     }
   };
 
-  const handleDeleteLibrary = (id) => {
+  const handleRenameLibrary = async (id, name) => {
+    try {
+      if (await renameLibrary(id, name)) {
+        refresh();
+        showNotification('Knihovna přejmenována', name);
+      } else {
+        showNotification('Nepodařilo se přejmenovat knihovnu', '', 'error');
+      }
+    } catch (err) {
+      showNotification('Nepodařilo se přejmenovat knihovnu', err.message, 'error');
+    }
+  };
+
+  const handleDeleteLibrary = async (id) => {
     const lib = libraries.find((l) => l.id === id);
-    deleteLibrary(id);
-    setOpenGenre(null);
-    refresh();
-    setTargetScanLibraryId(getActiveLibraryId() || '');
-    showNotification('Knihovna smazána', lib ? lib.name : '');
+    try {
+      await deleteLibrary(id);
+      setOpenGenre(null);
+      refresh();
+      setTargetScanLibraryId(getActiveLibraryId() || '');
+      showNotification('Knihovna smazána', lib ? lib.name : '');
+    } catch (err) {
+      showNotification('Knihovnu se nepodařilo smazat', err.message, 'error');
+    }
   };
 
   const handleSelectTargetScanLibrary = (libId) => {
@@ -220,10 +228,10 @@ export default function App() {
   };
 
   // Delete book from library
-  const handleDeleteBook = (id) => {
+  const handleDeleteBook = async (id) => {
     try {
       const book = allBooks.find((b) => b.id === id);
-      if (deleteBook(id)) {
+      if (await deleteBook(id)) {
         setSelectedBookId(null);
         const remainingOnShelf = openShelfBooks.filter((b) => b.id !== id).length;
         if (remainingOnShelf === 0) setOpenGenre(null);
@@ -233,23 +241,25 @@ export default function App() {
         showNotification('Kniha nebyla nalezena', '', 'error');
       }
     } catch (err) {
-      showNotification('Nepodařilo se uložit změnu', 'Prohlížeč zápis nepovolil.', 'error');
+      showNotification('Nepodařilo se uložit změnu', err.message, 'error');
     }
   };
 
   const handleKeepScanningChange = (value) => {
     setKeepScanning(value);
-    try {
-      localStorage.setItem('digitalniknihovna.keep_scanning.v1', value ? '1' : '0');
-    } catch {
-      // volba se jen nezapamatuje
-    }
+    saveSettings({ keep_scanning: value }).catch((err) => console.error('Saving scanner setting failed:', err));
   };
 
-  const handleMoveBook = (book, genre) => {
+  const handleMoveBook = async (book, genre) => {
     const name = genre.trim();
     if (!name || name === genreOf(book)) return;
-    if (!moveBookToShelf(book.id, name)) {
+    let moved = null;
+    try {
+      moved = await moveBookToShelf(book.id, name);
+    } catch (err) {
+      console.error('Move failed:', err);
+    }
+    if (!moved) {
       showNotification('Knihu se nepodařilo přesunout', '', 'error');
       return;
     }
@@ -258,10 +268,16 @@ export default function App() {
     showNotification(`Přesunuto na poličku ${name}`, book.title);
   };
 
-  const handleRenameShelf = (oldGenre, newGenre) => {
+  const handleRenameShelf = async (oldGenre, newGenre) => {
     const name = newGenre.trim();
     if (!name || name === oldGenre) return;
-    if (!renameShelf(activeLibraryId, oldGenre, name)) {
+    let changed = 0;
+    try {
+      changed = await renameShelf(activeLibraryId, oldGenre, name);
+    } catch (err) {
+      console.error('Rename failed:', err);
+    }
+    if (!changed) {
       showNotification('Poličku se nepodařilo přejmenovat', '', 'error');
       return;
     }
@@ -270,18 +286,23 @@ export default function App() {
     showNotification('Polička přejmenována', name);
   };
 
-  const handleStatusChange = (book, status) => {
+  const handleStatusChange = async (book, status) => {
     try {
-      updateBook(book.id, { status });
+      await updateBook(book.id, { status });
       refresh();
     } catch (err) {
-      showNotification('Nepodařilo se uložit změnu', 'Prohlížeč zápis nepovolil.', 'error');
+      showNotification('Nepodařilo se uložit změnu', err.message, 'error');
     }
   };
 
   // Lend / return a book
-  const handleLendBook = (id, borrower, lentAt) => {
-    const updated = lendBook(id, borrower, lentAt);
+  const handleLendBook = async (id, borrower, lentAt) => {
+    let updated = null;
+    try {
+      updated = await lendBook(id, borrower, lentAt);
+    } catch (err) {
+      console.error('Lend failed:', err);
+    }
     if (!updated) {
       showNotification('Knihu se nepodařilo půjčit', '', 'error');
       return;
@@ -290,8 +311,13 @@ export default function App() {
     showNotification(`Půjčeno: ${updated.loan.borrower}`, updated.title, 'success', '🤝');
   };
 
-  const handleReturnBook = (id) => {
-    const updated = returnBook(id);
+  const handleReturnBook = async (id) => {
+    let updated = null;
+    try {
+      updated = await returnBook(id);
+    } catch (err) {
+      console.error('Return failed:', err);
+    }
     if (!updated) {
       showNotification('Knihu se nepodařilo vrátit', '', 'error');
       return;
@@ -301,12 +327,12 @@ export default function App() {
   };
 
   // Save book from preview
-  const handleSaveBook = (bookData) => {
+  const handleSaveBook = async (bookData) => {
     try {
       const targetLibId = scanTargetId || getActiveLibraryId();
       const genre = genreOf(bookData);
       const isNewShelf = !scanTargetGenres.includes(genre);
-      const result = addBook({ ...bookData, genre }, targetLibId);
+      const result = await addBook({ ...bookData, genre }, targetLibId);
       const savedLibId = result.book?.library_id || targetLibId;
 
       const stayInScanner = keepScanning && activeTab === 'scan';
@@ -336,7 +362,7 @@ export default function App() {
         showNotification('Při ukládání knihy došlo k chybě', '', 'error');
       }
     } catch (err) {
-      showNotification('Prohlížeč nepovolil uložení knihy', '', 'error');
+      showNotification('Knihu se nepodařilo uložit', err.message, 'error');
     }
   };
 
@@ -397,7 +423,7 @@ export default function App() {
   };
 
   const openBookAnywhere = (book) => {
-    const libId = book.library_id || 'lib_default_1';
+    const libId = book.library_id;
     if (libId !== activeLibraryId) switchLibrary(libId);
     setActiveTab('library');
     setOpenGenre(genreOf(book));

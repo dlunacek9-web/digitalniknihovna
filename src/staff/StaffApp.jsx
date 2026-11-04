@@ -4,6 +4,7 @@ import { BookOpen, Inbox, LayoutDashboard, Repeat, Settings as SettingsIcon, Use
 import { useAuth } from '../lib/AuthContext';
 import { useAction } from '../lib/useAsync';
 import { NotConfigured, PageLoading } from '../pages/PlainParts';
+import { getSetting, saveSettings } from '../services/libraryStore';
 import Overview from './Overview';
 import Catalog from './Catalog';
 import Requests from './Requests';
@@ -12,21 +13,13 @@ import StaffMembers from './StaffMembers';
 import Settings from './Settings';
 import '../styles/plain.css';
 
-const ACTIVE_LIBRARY_KEY = 'digitalniknihovna.staff_library.v1';
-
 export function useStaffContext() {
   return useOutletContext();
 }
 
 function StaffLayout() {
   const { displayName, memberships, refreshMemberships, signOut } = useAuth();
-  const [selectedId, setSelectedId] = useState(() => {
-    try {
-      return localStorage.getItem(ACTIVE_LIBRARY_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [selectedId, setSelectedId] = useState(() => getSetting('staff_library'));
   const { error, run } = useAction();
 
   const membership = memberships.find((m) => m.library_id === selectedId) || memberships[0];
@@ -34,11 +27,8 @@ function StaffLayout() {
   const isAdmin = membership.role === 'admin';
 
   useEffect(() => {
-    try {
-      localStorage.setItem(ACTIVE_LIBRARY_KEY, membership.library_id);
-    } catch {
-      // volba se jen nezapamatuje
-    }
+    if (getSetting('staff_library') === membership.library_id) return;
+    saveSettings({ staff_library: membership.library_id }).catch((err) => console.error('Saving staff library failed:', err));
   }, [membership.library_id]);
 
   const links = [

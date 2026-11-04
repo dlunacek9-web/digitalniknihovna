@@ -1,5 +1,5 @@
 // Export & import of the whole library (all libraries + books) as JSON / CSV.
-// Pure helpers live here so they can be unit tested without localStorage.
+// Pure helpers live here so they can be unit tested without a database.
 
 export const BACKUP_FORMAT = 'digitalniknihovna-backup';
 export const BACKUP_VERSION = 1;
