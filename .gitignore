@@ -23,7 +23,8 @@ build/
 
 # Environment variables
 .env
-.env.production
+.env.*
+!.env.example
 
 # IDE and OS
 .DS_Store
