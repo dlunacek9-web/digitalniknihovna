@@ -378,7 +378,6 @@ async function main() {
   check('is_app_admin: čtenář', (await one(reader1, 'select public.is_app_admin() as a')).a === false);
   check('správce vidí všechny účty', (await as(owner, 'select * from public.admin_list_users()')).length >= 7);
   check('správce vidí všechny knihovny', (await as(owner, 'select * from public.admin_list_libraries()')).length === 2);
-  await denied('správce nesmaže sám sebe', owner, 'select public.admin_delete_user($1)', [owner], /Vlastní účet/);
   await as(owner, 'select public.admin_delete_user($1)', [reader2]);
   check('účet je smazán', (await db.query('select 1 from auth.users where id = $1', [reader2])).rows.length === 0);
   await as(owner, 'select public.admin_delete_library($1)', [libB.id]);

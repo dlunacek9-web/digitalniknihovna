@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 import { useAction, useAsync } from '../lib/useAsync';
 import { deleteLibrary, deleteUser, isAppAdmin, listAllLibraries, listAllUsers } from '../services/adminApi';
 import { ConfirmButton, LoadState, NotConfigured, PageLoading } from './PlainParts';
@@ -51,6 +52,12 @@ function Panel({ user, signOut }) {
     await fn(id);
     await Promise.all([users.reload(), libs.reload()]);
   });
+
+  const removeUser = async (id) => {
+    const ok = await remove(deleteUser, id);
+    // Smazaný vlastní účet už nemá platnou relaci.
+    if (ok && id === user.id) await supabase.auth.signOut({ scope: 'local' });
+  };
 
   return (
     <main className="plain" style={{ padding: 24 }}>
@@ -104,11 +111,13 @@ function Panel({ user, signOut }) {
                     <td>{u.libraries || '–'}</td>
                     <td>{fmt(u.created_at)}</td><td>{fmt(u.last_sign_in_at)}</td><td>{u.loan_count}</td>
                     <td>
-                      {u.id !== user.id && (
-                        <ConfirmButton disabled={busy} confirmLabel="Smazat účet?" onConfirm={() => remove(deleteUser, u.id)}>
-                          Smazat
-                        </ConfirmButton>
-                      )}
+                      <ConfirmButton
+                        disabled={busy}
+                        confirmLabel={u.id === user.id ? 'Smazat vlastní účet?' : 'Smazat účet?'}
+                        onConfirm={() => removeUser(u.id)}
+                      >
+                        Smazat
+                      </ConfirmButton>
                     </td>
                   </tr>
                 ))}
