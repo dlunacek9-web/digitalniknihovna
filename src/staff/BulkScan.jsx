@@ -61,6 +61,14 @@ function ScanPhase({ onFinish, onCancel }) {
             <Check size={56} strokeWidth={3} />
           </div>
         )}
+        <button
+          type="button"
+          className="staff-scanner__flip"
+          onClick={camera.flipCamera}
+          aria-label="Otočit kameru"
+        >
+          <SwitchCamera size={18} /> Otočit kameru
+        </button>
         {camera.hasPermissionError && <p className="staff-scanner__error">{camera.errorMessage}</p>}
       </div>
 
@@ -78,11 +86,6 @@ function ScanPhase({ onFinish, onCancel }) {
         >
           Ukončit skenování ({codes.length})
         </button>
-        {camera.canFlip && camera.isScanning && (
-          <button type="button" className="plain-btn" onClick={camera.flipCamera}>
-            <SwitchCamera size={15} /> Otočit kameru
-          </button>
-        )}
         {camera.torchSupported && camera.isScanning && (
           <button type="button" className="plain-btn" aria-pressed={camera.torchOn} onClick={camera.toggleTorch}>
             <Flashlight size={15} /> {camera.torchOn ? 'Zhasnout' : 'Přisvítit'}
