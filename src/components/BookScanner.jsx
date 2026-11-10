@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flashlight, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2, Library } from 'lucide-react';
+import { Flashlight, SwitchCamera, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2, Library } from 'lucide-react';
 import { FRAME_H, FRAME_W, useBarcodeCamera } from '../lib/useBarcodeCamera';
 
 function cleanIsbnFrontend(isbnStr) {
@@ -27,6 +27,8 @@ export default function BookScanner({
     torchOn,
     torchSupported,
     toggleTorch,
+    canFlip,
+    flipCamera,
     finishWithCode
   } = useBarcodeCamera({ onCode: onIsbnDetected });
 
@@ -120,6 +122,19 @@ export default function BookScanner({
               style={{ width: `${FRAME_W * 100}%`, height: `${FRAME_H * 100}%` }}
             />
           </div>
+        )}
+
+        {/* Přepnutí přední / zadní kamery */}
+        {isScanning && canFlip && (
+          <button
+            type="button"
+            onClick={flipCamera}
+            aria-label="Otočit kameru"
+            title="Otočit kameru"
+            className="absolute top-3 left-3 p-2.5 rounded-full shadow-md bg-black/50 text-white hover:bg-black/70 backdrop-blur-md"
+          >
+            <SwitchCamera className="w-4 h-4" />
+          </button>
         )}
 
         {/* Torch Button */}

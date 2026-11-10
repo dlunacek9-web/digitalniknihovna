@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Barcode, Camera, Flashlight, TextCursorInput, X } from 'lucide-react';
+import { Barcode, Camera, Flashlight, SwitchCamera, TextCursorInput, X } from 'lucide-react';
 import { toValidIsbn } from '../lib/isbn';
 import { readIsbnFromImage, readIsbnFromPhoto, stopOcr } from '../lib/isbnOcr';
 import { FRAME_H, FRAME_W, useBarcodeCamera } from '../lib/useBarcodeCamera';
@@ -130,6 +130,11 @@ export default function IsbnScanner({ onCode, onClose }) {
             onChange={handlePhoto}
           />
         </label>
+        {camera.canFlip && camera.isScanning && (
+          <button type="button" className="plain-btn" onClick={camera.flipCamera}>
+            <SwitchCamera size={15} /> Otočit kameru
+          </button>
+        )}
         {camera.torchSupported && isScanning && (
           <button type="button" className="plain-btn" aria-pressed={camera.torchOn} onClick={camera.toggleTorch}>
             <Flashlight size={15} /> {camera.torchOn ? 'Zhasnout' : 'Přisvítit'}

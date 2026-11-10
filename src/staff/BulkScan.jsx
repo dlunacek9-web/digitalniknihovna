@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Flashlight } from 'lucide-react';
+import { Check, Flashlight, SwitchCamera } from 'lucide-react';
 import { applyBookToForm, EMPTY_CATALOG_FORM, formToRow } from '../lib/catalog';
 import { toValidIsbn } from '../lib/isbn';
 import { useAction } from '../lib/useAsync';
@@ -78,6 +78,11 @@ function ScanPhase({ onFinish, onCancel }) {
         >
           Ukončit skenování ({codes.length})
         </button>
+        {camera.canFlip && camera.isScanning && (
+          <button type="button" className="plain-btn" onClick={camera.flipCamera}>
+            <SwitchCamera size={15} /> Otočit kameru
+          </button>
+        )}
         {camera.torchSupported && camera.isScanning && (
           <button type="button" className="plain-btn" aria-pressed={camera.torchOn} onClick={camera.toggleTorch}>
             <Flashlight size={15} /> {camera.torchOn ? 'Zhasnout' : 'Přisvítit'}

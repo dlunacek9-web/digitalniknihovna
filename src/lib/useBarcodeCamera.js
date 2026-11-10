@@ -118,6 +118,9 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
   const [digitalZoom, setDigitalZoom] = useState(1);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+  // 'environment' = zadní kamera, 'user' = přední
+  const [facingMode, setFacingMode] = useState('environment');
+  const [canFlip, setCanFlip] = useState(false);
 
   const stopCamera = () => {
     const stream = streamRef.current;
@@ -152,6 +155,11 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
       try {
         setHasPermissionError(false);
         setErrorMessage('');
+        setIsScanning(false);
+        setTorchOn(false);
+        setTorchSupported(false);
+        zoomUsedRef.current = 1;
+        setDigitalZoom(1);
 
         const detectorPromiseLocal = getDetector();
         detectorPromiseLocal.catch(() => {});
@@ -159,7 +167,7 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-            facingMode: { ideal: 'environment' },
+            facingMode: { ideal: facingMode },
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           }
@@ -169,6 +177,14 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
           return;
         }
         streamRef.current = stream;
+
+        // Přepínač kamer má smysl jen u zařízení s víc kamerami (popisky jsou dostupné až po povolení)
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          if (!cancelled) setCanFlip(devices.filter((d) => d.kind === 'videoinput').length > 1);
+        } catch (e) {
+          // enumerateDevices není nutné
+        }
 
         const track = stream.getVideoTracks()[0];
         let capabilities = {};
@@ -266,7 +282,11 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
       cancelled = true;
       stopCamera();
     };
-  }, [finishWithCode]);
+  }, [finishWithCode, facingMode]);
+
+  const flipCamera = useCallback(() => {
+    setFacingMode((mode) => (mode === 'environment' ? 'user' : 'environment'));
+  }, []);
 
   const toggleTorch = async () => {
     const track = streamRef.current && streamRef.current.getVideoTracks()[0];
@@ -291,6 +311,9 @@ export function useBarcodeCamera({ onCode, accept = toValidBookCode, paused = fa
     torchOn,
     torchSupported,
     toggleTorch,
+    facingMode,
+    canFlip,
+    flipCamera,
     finishWithCode,
     grabFrame
   };
