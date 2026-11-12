@@ -148,3 +148,4 @@ export const createInvite = (libraryId, role, validDays) =>
   rpc('create_invite', { p_library_id: libraryId, p_role: role, p_valid_days: validDays });
 export const revokeInvite = (code) => rpc('revoke_invite', { p_code: code });
 export const redeemInvite = (code) => rpc('redeem_invite', { p_code: code });
+export const leaveLibrary = (libraryId) => rpc('leave_library', { p_library_id: libraryId });

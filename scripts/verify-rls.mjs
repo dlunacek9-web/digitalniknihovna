@@ -213,7 +213,7 @@ async function main() {
   await denied('zrušený kód nejde použít', reader1, 'select public.redeem_invite($1)', [toRevoke.code], /neplatný/);
 
   const adminInvite = await one(adminA, `select * from public.create_invite($1, 'admin')`, [libA.id]);
-  await denied('člen si kódem nezvýší roli', staffA, 'select public.redeem_invite($1)', [adminInvite.code], /už jste/);
+  await denied('člen si kódem nezvýší roli', staffA, 'select public.redeem_invite($1)', [adminInvite.code], /už jsi/);
   await as(adminA, 'select public.revoke_invite($1)', [adminInvite.code]);
 
   await denied('zaměstnanec nemění role', staffA, `select public.set_staff_role($1, $2, 'admin')`, [libA.id, staffA], /jen správce/);
@@ -367,6 +367,23 @@ async function main() {
   await as(reader1, 'delete from public.cabins where id = $1', [cabin.id]);
   check('smazání chaty smaže její knihy', (await db.query('select 1 from public.cabin_books where id = $1', [ownBook.id])).rows.length === 0);
 
+  console.log('Limit žádostí a odchod z knihovny');
+  const limitItems = [];
+  for (let i = 0; i < 6; i += 1) {
+    limitItems.push(await one(adminA, `insert into public.catalog_items (library_id, title) values ($1, $2) returning *`, [libA.id, `Limit ${i}`]));
+  }
+  const reader3 = await createUser('Čtenář 3');
+  for (const it of limitItems.slice(0, 5)) await as(reader3, 'select public.request_loan($1)', [it.id]);
+  await denied('šestá aktivní žádost neprojde', reader3, 'select public.request_loan($1)', [limitItems[5].id], /nejvýš 5/);
+  const staffInvite = await one(adminA, `select * from public.create_invite($1, 'staff', 7)`, [libA.id]);
+  const leaver = await createUser('Odcházející');
+  await as(leaver, 'select public.redeem_invite($1)', [staffInvite.code]);
+  await denied('cizí knihovnu nejde opustit', reader1, 'select public.leave_library($1)', [libA.id], /nejsi zaměstnanec/);
+  await as(leaver, 'select public.leave_library($1)', [libA.id]);
+  check('zaměstnanec sám odešel', (await db.query('select 1 from public.library_staff where user_id = $1', [leaver])).rows.length === 0);
+  await denied('jediný správce neodejde', adminA, 'select public.leave_library($1)', [libA.id], /alespoň jednoho správce/);
+  await denied('nepřihlášený nic nezaloží', null, 'select public.create_library($1)', ['x'], /permission denied|Nejsi přihlášený/);
+
   console.log('Správce aplikace');
   const owner = await createUser('Daniel');
   await db.query(`update auth.users set email = 'daniel@lunacek.cz', email_confirmed_at = now() where id = $1`, [owner]);
@@ -378,6 +395,7 @@ async function main() {
   check('is_app_admin: čtenář', (await one(reader1, 'select public.is_app_admin() as a')).a === false);
   check('správce vidí všechny účty', (await as(owner, 'select * from public.admin_list_users()')).length >= 7);
   check('správce vidí všechny knihovny', (await as(owner, 'select * from public.admin_list_libraries()')).length === 2);
+  await denied('správce aplikace nesmaže jediného správce knihovny', owner, 'select public.admin_delete_user($1)', [adminA], /jediný správce/);
   await as(owner, 'select public.admin_delete_user($1)', [reader2]);
   check('účet je smazán', (await db.query('select 1 from auth.users where id = $1', [reader2])).rows.length === 0);
   await as(owner, 'select public.admin_delete_library($1)', [libB.id]);

@@ -48,7 +48,7 @@ describe('deleteLibrary', () => {
     await loadLibraryStore('u1');
     expect(getLibraries().map((lib) => lib.id)).toEqual([DEMO_LIBRARY_ID, 'a']);
 
-    await expect(deleteLibrary('a')).rejects.toThrow('Poslední knihovnu nelze smazat');
+    await expect(deleteLibrary('a')).rejects.toThrow('Poslední chatu nejde smazat');
     expect(db.deletes).toEqual([]);
     expect(getLibraries().some((lib) => lib.id === 'a')).toBe(true);
   });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { HandHelping, Landmark, Pencil, Trash2, Undo2, X } from 'lucide-react';
 import { bookColor, genreOf, isLightColor } from '../services/genres';
 import GenreField from './GenreField';
+import BookFields, { bookToFields, validateBookFields } from './BookFields';
 import ReturnLoanButton from './ReturnLoanButton';
 import { OVERDUE_DAYS, daysSince, formatDays, formatLoanDate, todayIsoDate } from '../services/bookLoans';
 import { canRequestReturn, formatDate, isOverdue as isLoanOverdue, loanStatusLabel } from '../lib/loanRules';
@@ -13,7 +14,7 @@ const STATUSES = [
 ];
 
 /** Detail knihy: obálka se natočí z hřbetu, pod ní stav čtení. */
-export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveToShelf, onClose, onStatusChange, onDelete, onLend, onReturn, onRequestReturn }) {
+export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveToShelf, onClose, onStatusChange, onEdit, onDelete, onLend, onReturn, onRequestReturn }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [showLendForm, setShowLendForm] = useState(false);
@@ -21,6 +22,9 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
   const [lentAt, setLentAt] = useState(todayIsoDate());
   const [moving, setMoving] = useState(false);
   const [shelfDraft, setShelfDraft] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [fields, setFields] = useState(null);
+  const [editError, setEditError] = useState('');
 
   useEffect(() => {
     setConfirmDelete(false);
@@ -28,6 +32,8 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
     setShowLendForm(false);
     setBorrower('');
     setMoving(false);
+    setEditing(false);
+    setEditError('');
   }, [book?.id]);
 
   if (!book) return null;
@@ -41,6 +47,34 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
   };
 
   const borrowed = book.library_loan;
+
+  const startEdit = () => {
+    setFields(bookToFields(book));
+    setEditError('');
+    setEditing(true);
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    const problem = validateBookFields(fields);
+    if (problem) {
+      setEditError(problem);
+      return;
+    }
+    const ok = await onEdit(book, {
+      title: fields.title.trim(),
+      authors: fields.authors.trim() || 'Neznámý autor',
+      isbn: fields.isbn.replace(/[-\s]/g, ''),
+      publisher: fields.publisher.trim(),
+      publication_date: fields.publication_date.trim(),
+      page_count: fields.page_count ? Number.parseInt(fields.page_count, 10) : null,
+      cover_url: fields.cover_url.trim()
+    });
+    if (ok) {
+      setEditing(false);
+      setCoverFailed(false);
+    }
+  };
   const loanDays = book.loan ? daysSince(book.loan.lent_at) : 0;
   const isOverdue = loanDays > OVERDUE_DAYS;
   const color = bookColor(book);
@@ -72,6 +106,23 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
         </div>
 
         <div className="book-detail__info">
+          {book.demo && (
+            <p className="demo-note" role="note">
+              Ukázková kniha: změny se neukládají a po obnovení stránky zmizí.
+            </p>
+          )}
+          {editing ? (
+            <form className="book-edit" onSubmit={saveEdit} noValidate>
+              <small className="eyebrow">Upravit údaje knihy</small>
+              <BookFields value={fields} onChange={setFields} />
+              {editError && <p className="preview-warning" role="alert">{editError}</p>}
+              <div className="preview-actions">
+                <button type="submit" className="dock-btn btn-ember">Uložit</button>
+                <button type="button" className="text-btn" onClick={() => setEditing(false)}>Zrušit</button>
+              </div>
+            </form>
+          ) : (
+          <>
           <small className="eyebrow">{genreOf(book)}</small>
           {moving ? (
             <form
@@ -179,14 +230,23 @@ export default function BookDetail({ book, shelfCount, shelfNames = [], onMoveTo
           )}
 
           {!borrowed && (
-            <button
-              type="button"
-              className={`text-btn ${confirmDelete ? 'is-danger' : ''}`}
-              onClick={() => (confirmDelete ? onDelete(book.id) : setConfirmDelete(true))}
-            >
-              <Trash2 size={14} />
-              {confirmDelete ? 'Opravdu odstranit z chaty?' : 'Odstranit knihu'}
-            </button>
+            <div className="book-detail__actions">
+              {onEdit && !book.demo && (
+                <button type="button" className="text-btn" onClick={startEdit}>
+                  <Pencil size={14} /> Upravit údaje
+                </button>
+              )}
+              <button
+                type="button"
+                className={`text-btn ${confirmDelete ? 'is-danger' : ''}`}
+                onClick={() => (confirmDelete ? onDelete(book.id) : setConfirmDelete(true))}
+              >
+                <Trash2 size={14} />
+                {confirmDelete ? 'Opravdu odstranit z chaty?' : 'Odstranit knihu'}
+              </button>
+            </div>
+          )}
+          </>
           )}
         </div>
       </div>

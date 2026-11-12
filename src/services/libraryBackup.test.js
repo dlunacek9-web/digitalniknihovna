@@ -30,7 +30,7 @@ describe('JSON backup', () => {
   });
 
   it('rejects JSON that is not a library backup', () => {
-    expect(() => parseJsonBackup('{"books": []}')).toThrow('Soubor není záloha Digitální knihovny.');
+    expect(() => parseJsonBackup('{"books": []}')).toThrow('Soubor není záloha z Lukutupy.');
   });
 });
 

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../lib/AuthContext';
 import { useAction } from '../lib/useAsync';
-import { createLibrary, redeemInvite } from '../services/publicLibraryApi';
-import { NotConfigured, PageLoading } from './PlainParts';
+import { createLibrary, leaveLibrary, redeemInvite } from '../services/publicLibraryApi';
+import { ConfirmButton, NotConfigured, PageLoading } from './PlainParts';
 import PasswordForm from './PasswordForm';
 import '../styles/plain.css';
 
@@ -172,6 +172,8 @@ export default function AccountPage() {
   const { configured, loading, user, displayName, memberships, membershipsError, refreshMemberships, signOut } = useAuth();
   const navigate = useNavigate();
   const { busy, error, run } = useAction();
+  const leave = useAction();
+  const [staffOpen, setStaffOpen] = useState(false);
 
   if (!configured) return <NotConfigured />;
   if (loading) return <PageLoading />;
@@ -193,22 +195,51 @@ export default function AccountPage() {
         {memberships.length > 0 ? (
           <>
             <h2>Moje knihovny</h2>
-            <ul className="plain-list">
+            <ul className="plain-rows">
               {memberships.map((m) => (
                 <li key={m.library_id}>
-                  {m.libraries?.name} ({m.role === 'admin' ? 'správce' : 'zaměstnanec'})
+                  <span>
+                    {m.libraries?.name} ({m.role === 'admin' ? 'správce' : 'zaměstnanec'})
+                  </span>
+                  <ConfirmButton
+                    disabled={leave.busy}
+                    confirmLabel="Opravdu odejít?"
+                    onConfirm={() =>
+                      leave.run(async () => {
+                        await leaveLibrary(m.library_id);
+                        await refreshMemberships();
+                      })
+                    }
+                  >
+                    Odejít z knihovny
+                  </ConfirmButton>
                 </li>
               ))}
             </ul>
+            {leave.error && <p className="plain-error" role="alert">{leave.error}</p>}
             <Link className="plain-btn plain-btn--primary" to="/knihovnik">Do knihovnické části</Link>
           </>
         ) : (
-          !membershipsError && (
-            <div className="plain-columns">
-              <CreateLibraryForm onDone={openStaff} />
-              <RedeemInviteForm onDone={openStaff} />
-            </div>
-          )
+          !membershipsError &&
+          (staffOpen ? (
+            <>
+              <h2>Pro knihovníky</h2>
+              <p className="plain-muted">
+                Školní knihovnu zakládá jen její správce. Ostatní kolegové dostanou od správce pozvánkový kód.
+              </p>
+              <div className="plain-columns">
+                <CreateLibraryForm onDone={openStaff} />
+                <RedeemInviteForm onDone={openStaff} />
+              </div>
+              <button type="button" className="plain-link" onClick={() => setStaffOpen(false)}>
+                Nejsem knihovník, skrýt
+              </button>
+            </>
+          ) : (
+            <button type="button" className="plain-link" onClick={() => setStaffOpen(true)}>
+              Jsem knihovník: založit knihovnu nebo zadat pozvánkový kód
+            </button>
+          ))
         )}
 
         <ProfileForm />

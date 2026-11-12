@@ -21,7 +21,13 @@ describe('toCzechMessage', () => {
   });
 
   it('přeloží porušení omezení', () => {
-    expect(toCzechMessage({ code: '23505', message: 'duplicate key' })).toContain('inventární číslo');
+    expect(
+      toCzechMessage({ code: '23505', message: 'duplicate key value violates unique constraint "catalog_items_inventory_number_key"' })
+    ).toContain('inventární číslo');
+    expect(
+      toCzechMessage({ code: '23505', message: 'duplicate key value violates unique constraint "cabin_books_one_per_loan"' })
+    ).toContain('vypůjčená kniha');
+    expect(toCzechMessage({ code: '23505', message: 'duplicate key' })).toBe('Takový záznam už existuje.');
   });
 });
 

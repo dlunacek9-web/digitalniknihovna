@@ -87,17 +87,17 @@ export default function LibraryCabin({ books, openGenre, onShelfClick, posterOpe
       <div ref={labelsRef} className={`cabin-labels ${openGenre || posterOpen ? 'is-hidden' : ''}`} />
       {!hideCity && (
         <div className={`cabin-city ${openGenre || posterOpen ? 'is-hidden' : ''}`}>
-          <button ref={cityRef} type="button" className="cabin-city__btn" onClick={onCityClick} aria-label="Do městské knihovny">
+          <button ref={cityRef} type="button" className="cabin-city__btn" onClick={onCityClick} aria-label="Svět knih: hledat a přidávat knihy z celého světa">
             <Library size={22} />
-            <span>Městská knihovna</span>
+            <span>Svět knih</span>
           </button>
         </div>
       )}
       {onProfileClick && (
         <div className={`cabin-city ${openGenre || posterOpen ? 'is-hidden' : ''}`}>
-          <button ref={profileRef} type="button" className="cabin-city__btn" onClick={onProfileClick} aria-label="Profil">
+          <button ref={profileRef} type="button" className="cabin-city__btn" onClick={onProfileClick} aria-label="Můj přehled: statistiky, půjčky a záloha">
             <User size={22} />
-            <span>Profil</span>
+            <span>Můj přehled</span>
           </button>
         </div>
       )}

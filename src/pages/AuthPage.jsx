@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import { useAuth } from '../lib/AuthContext';
 import { useAction } from '../lib/useAsync';
 import { NotConfigured } from './PlainParts';
@@ -17,7 +17,7 @@ function safeNext(value) {
 export default function AuthPage() {
   const { configured, loading, user, signIn, signUp, signInWithGoogle, requestPasswordReset } = useAuth();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState(() => (params.get('rezim') === 'registrace' ? 'signup' : 'login'));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,6 +58,16 @@ export default function AuthPage() {
 
   return (
     <main className="plain plain--center">
+      <section className="plain-intro" aria-label="O aplikaci">
+        <p className="plain-intro__brand">Lukutupa</p>
+        <p className="plain-intro__tagline">Tvoje digitální knihovna ve 3D chatě</p>
+        <ul>
+          <li>Naskenuj čárový kód knihy mobilem a kniha sama najde svou poličku podle žánru.</li>
+          <li>Sleduj, co čteš, co chceš číst a komu jsi co půjčil.</li>
+          <li>Půjč si knihu ze školní knihovny. Knihovník žádosti vyřizuje ve vlastní části aplikace.</li>
+        </ul>
+        <Link className="plain-btn plain-intro__demo" to="/ukazka">Vyzkoušet bez účtu</Link>
+      </section>
       <section className="plain-card plain-card--narrow">
         <h1>{TITLES[mode]}</h1>
         {needsConfirm && (

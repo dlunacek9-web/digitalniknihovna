@@ -25,7 +25,11 @@ export function toCzechMessage(error) {
       ? 'Na tuto akci nemáš oprávnění.'
       : message;
   }
-  if (code === '23505') return 'Toto inventární číslo už v knihovně je.';
+  if (code === '23505') {
+    if (/inventory_number/i.test(message)) return 'Toto inventární číslo už v knihovně je.';
+    if (/cabin_books_one_per_loan/i.test(message)) return 'Tahle vypůjčená kniha už v chatě je.';
+    return 'Takový záznam už existuje.';
+  }
   if (code === '23503') return 'Záznam nejde smazat, protože se na něj odkazují jiná data.';
   if (code === '23514') return 'Zadané údaje nejsou platné.';
 

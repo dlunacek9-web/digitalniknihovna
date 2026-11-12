@@ -2,7 +2,7 @@ import { classifyGenre } from './genres';
 import { cleanIsbnDigits, normalizeRecord, parseYear, searchKnihovnyApi, toIsbn13 } from './knihovnyApi';
 
 /**
- * Celosvětové hledání knih pro městskou knihovnu.
+ * Celosvětové hledání knih pro svět knih.
  * Dotazuje Knihovny.cz, Google Books a Open Library současně a výsledky slije.
  */
 

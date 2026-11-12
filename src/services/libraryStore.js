@@ -9,7 +9,9 @@ import { buildDemoLibrary, DEMO_LIBRARY_ID } from './demoLibrary';
 import { reconcileBorrowedBooks } from '../lib/borrowedBooks';
 
 const PAGE_SIZE = 1000;
-const DEFAULT_CABIN_NAME = 'Knihovna 1';
+const DEFAULT_CABIN_NAME = 'Moje chata';
+// Výchozí název z doby ukládání v prohlížeči; prázdnou chatu s ním se nevyplatí přenášet.
+const LEGACY_DEFAULT_CABIN_NAME = 'Knihovna 1';
 
 // Klíče z dřívějška, kdy se vše ukládalo do prohlížeče. Zbytek se po přihlášení přenese do účtu.
 const LEGACY_KEYS = {
@@ -146,9 +148,9 @@ async function migrateLegacy() {
     counts.set(id, (counts.get(id) || 0) + 1);
   }
 
-  const toCreate = ownLibraries.filter((lib) => counts.get(lib.id) || lib.name !== DEFAULT_CABIN_NAME);
+  const toCreate = ownLibraries.filter((lib) => counts.get(lib.id) || lib.name !== LEGACY_DEFAULT_CABIN_NAME);
   if (counts.get('lib_default_1') && !ownLibraries.some((lib) => lib.id === 'lib_default_1')) {
-    toCreate.push({ id: 'lib_default_1', name: DEFAULT_CABIN_NAME });
+    toCreate.push({ id: 'lib_default_1', name: LEGACY_DEFAULT_CABIN_NAME });
   }
 
   const idMap = new Map();
@@ -156,7 +158,7 @@ async function migrateLegacy() {
     const created = unwrap(
       await supabase
         .from('cabins')
-        .insert(toCreate.map((lib) => ({ user_id: state.userId, name: String(lib.name).trim().slice(0, 200) || 'Knihovna' })))
+        .insert(toCreate.map((lib) => ({ user_id: state.userId, name: String(lib.name).trim().slice(0, 200) || 'Chata' })))
         .select()
     );
     toCreate.forEach((lib, index) => idMap.set(lib.id, created[index]));
@@ -216,6 +218,12 @@ export function resetLibraryStore() {
   state = emptyState();
 }
 
+/** Ukázka bez účtu: jen ukázková chata v paměti, nic se neukládá. */
+export function loadDemoStore() {
+  const demo = buildDemoLibrary();
+  state = { ...emptyState(), demoLibrary: demo.library, demoBooks: demo.books, settings: { active_cabin: DEMO_LIBRARY_ID } };
+}
+
 // ---------- chaty ----------
 
 export function getLibraries() {
@@ -236,7 +244,7 @@ export function setActiveLibraryId(id) {
 
 export function addLibrary(name) {
   return serialize(async () => {
-    const trimmed = String(name || '').trim() || 'Nová knihovna';
+    const trimmed = String(name || '').trim() || 'Nová chata';
     const [created] = unwrap(
       await supabase.from('cabins').insert({ user_id: state.userId, name: trimmed.slice(0, 200) }).select()
     );
@@ -260,7 +268,7 @@ export function deleteLibrary(id) {
   return serialize(async () => {
     // Ukázková chata se nepočítá, knihy se do ní ukládat nedají.
     if (!isDemoLibraryId(id) && state.cabins.length <= 1) {
-      throw new Error('Poslední knihovnu nelze smazat. Nejdřív vytvoř novou.');
+      throw new Error('Poslední chatu nejde smazat. Nejdřív postav novou.');
     }
     if (isDemoLibraryId(id)) {
       state.demoLibrary = null;
@@ -467,11 +475,16 @@ export function importLibraryData({ libraries, books }) {
       state.books.filter((b) => b.isbn).map((b) => `${b.library_id}|${cleanIsbnDigits(b.isbn)}`)
     );
     const rows = [];
+    let skipped = 0;
     for (const book of books) {
-      if (book.demo) continue;
+      // Vypůjčené knihy doplní synchronizace s knihovnou, ze zálohy by vznikly dvakrát.
+      if (book.demo || book.library_loan) continue;
       const cabin = cabinFor.get(book.library_id) ?? state.cabins[0];
       const isbnKey = book.isbn ? `${cabin.id}|${cleanIsbnDigits(book.isbn)}` : null;
-      if (isbnKey && knownIsbns.has(isbnKey)) continue;
+      if (isbnKey && knownIsbns.has(isbnKey)) {
+        skipped += 1;
+        continue;
+      }
       if (isbnKey) knownIsbns.add(isbnKey);
       rows.push({
         ...bookToRow(book, cabin.id),
@@ -485,6 +498,6 @@ export function importLibraryData({ libraries, books }) {
       added.push(...saved.map(rowToBook));
     }
     state.books = [...added, ...state.books];
-    return { librariesAdded, booksAdded: added.length, booksSkipped: books.length - added.length };
+    return { librariesAdded, booksAdded: added.length, booksSkipped: skipped };
   });
 }

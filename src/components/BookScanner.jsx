@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flashlight, SwitchCamera, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2, Library } from 'lucide-react';
+import { Flashlight, SwitchCamera, ArrowLeft, AlertCircle, KeyRound, Search, ScanLine, Loader2, Library, BookPlus } from 'lucide-react';
 import { FRAME_H, FRAME_W, useBarcodeCamera } from '../lib/useBarcodeCamera';
 
 function cleanIsbnFrontend(isbnStr) {
@@ -14,6 +14,7 @@ export default function BookScanner({
   keepScanning = false,
   onKeepScanningChange,
   onIsbnDetected,
+  onManualEntry,
   onClose
 }) {
   const {
@@ -41,11 +42,11 @@ export default function BookScanner({
     setManualError('');
     const cleaned = cleanIsbnFrontend(manualIsbn);
     if (!cleaned) {
-      setManualError('Zadejte číslo ISBN.');
+      setManualError('Zadej číslo ISBN.');
       return;
     }
     if (!/^(?:\d{9}[\dX]|\d{13})$/.test(cleaned)) {
-      setManualError('Neplatný formát ISBN (má mít 10 nebo 13 číslic).');
+      setManualError('ISBN má mít 10 nebo 13 číslic. Kniha bez ISBN? Přidej ji ručně níže.');
       return;
     }
 
@@ -58,11 +59,12 @@ export default function BookScanner({
       {/* Top Header */}
       <div className="flex items-center justify-between pb-2 border-b border-stone-100">
         <button
+          type="button"
           onClick={onClose}
           className="flex items-center space-x-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Zpět do knihovny</span>
+          <span>Zpět do chaty</span>
         </button>
 
         <span className="text-xs font-bold text-burgundy-900 flex items-center space-x-1">
@@ -73,21 +75,25 @@ export default function BookScanner({
 
       {/* Dropdown for Target Library selection above camera */}
       <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200/80">
-        <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1 flex items-center space-x-1.5">
-          <Library className="w-3.5 h-3.5 text-burgundy-900" />
-          <span>Uložit naskenované knihy do:</span>
-        </label>
-        <select
-          value={selectedLibraryId}
-          onChange={(e) => onSelectLibrary && onSelectLibrary(e.target.value)}
-          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900 cursor-pointer shadow-xs"
-        >
-          {libraries.map((lib) => (
-            <option key={lib.id} value={lib.id}>
-              {lib.name}
-            </option>
-          ))}
-        </select>
+        {libraries.length > 0 && (
+          <>
+            <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider mb-1 flex items-center space-x-1.5">
+              <Library className="w-3.5 h-3.5 text-burgundy-900" />
+              <span>Ukládat do chaty:</span>
+            </label>
+            <select
+              value={selectedLibraryId}
+              onChange={(e) => onSelectLibrary && onSelectLibrary(e.target.value)}
+              className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs font-semibold text-stone-800 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900 cursor-pointer shadow-xs"
+            >
+              {libraries.map((lib) => (
+                <option key={lib.id} value={lib.id}>
+                  {lib.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
         <label className="mt-2.5 flex items-center space-x-2 text-xs font-semibold text-stone-700 cursor-pointer">
           <input
             type="checkbox"
@@ -140,7 +146,10 @@ export default function BookScanner({
         {/* Torch Button */}
         {isScanning && torchSupported && (
           <button
+            type="button"
             onClick={toggleTorch}
+            aria-label={torchOn ? 'Vypnout svítilnu' : 'Zapnout svítilnu'}
+            aria-pressed={torchOn}
             className={`absolute top-3 right-3 p-2.5 rounded-full text-xs font-bold shadow-md transition-all ${
               torchOn
                 ? 'bg-amber-400 text-amber-950 scale-105'
@@ -184,6 +193,8 @@ export default function BookScanner({
               value={manualIsbn}
               onChange={(e) => setManualIsbn(e.target.value)}
               placeholder="Např. 9788073880545..."
+              inputMode="numeric"
+              aria-label="ISBN"
               className="flex-1 px-3.5 py-2.5 bg-white border border-stone-200 rounded-xl text-xs font-mono text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-burgundy-900/20 focus:border-burgundy-900"
             />
             <button
@@ -197,10 +208,21 @@ export default function BookScanner({
           </div>
 
           {manualError && (
-            <p className="text-[11px] text-red-600 font-medium pl-1">{manualError}</p>
+            <p className="text-[11px] text-red-600 font-medium pl-1" role="alert">{manualError}</p>
           )}
         </form>
       </div>
+
+      {onManualEntry && (
+        <button
+          type="button"
+          onClick={onManualEntry}
+          className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl border border-dashed border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+        >
+          <BookPlus className="w-4 h-4" />
+          <span>Kniha nemá ISBN? Přidat ručně</span>
+        </button>
+      )}
     </div>
   );
 }

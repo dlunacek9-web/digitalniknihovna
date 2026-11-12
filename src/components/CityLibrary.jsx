@@ -29,7 +29,7 @@ function BookList({ books, onPick }) {
 }
 
 /**
- * Městská knihovna: tajemná hala, kde se hledá v celosvětové databázi.
+ * Svět knih (dříve „městská knihovna“): tajemná hala, kde se hledá v celosvětové databázi.
  * Vybraná kniha přiletí z regálů na pultík; odtud ji lze přidat do chaty.
  *
  * phase: 'search' (otevřená kniha s hledáním) → 'flying' → 'lectern' → 'leaving' → 'search'
@@ -154,7 +154,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
     : [];
 
   return (
-    <div className={`city ${closing ? 'is-closing' : ''}`} role="dialog" aria-modal="true" aria-label="Městská knihovna">
+    <div className={`city ${closing ? 'is-closing' : ''}`} role="dialog" aria-modal="true" aria-label="Svět knih">
       <canvas ref={canvasRef} className="city-canvas" aria-hidden="true" />
       <div className="city-vignette" aria-hidden="true" />
 
@@ -163,7 +163,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
           <ArrowLeft size={16} />
           <span>Zpět do chaty</span>
         </button>
-        <h2 className="city-title">Městská knihovna</h2>
+        <h2 className="city-title">Svět knih</h2>
       </header>
 
       <div ref={stageRef} className="city-stage">
@@ -178,7 +178,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Název, autor, ISBN…"
-                aria-label="Hledat v městské knihovně"
+                aria-label="Hledat ve světě knih"
                 disabled={!showTome}
               />
               {query && (
@@ -208,7 +208,12 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
           </div>
 
           <div className="tome__page tome__page--right">
-            {browsing && <BookList books={FEATURED_BOOKS} onPick={summon} />}
+            {browsing && (
+              <>
+                <small className="tome__eyebrow">Tip: světová klasika v původních vydáních</small>
+                <BookList books={FEATURED_BOOKS} onPick={summon} />
+              </>
+            )}
             {!browsing && status === 'loading' && <p className="tome__empty">Listuji v regálech…</p>}
             {!browsing && status === 'error' && <p className="tome__empty">Katalogy neodpovídají. Zkus to za chvíli.</p>}
             {!browsing && status === 'done' && results.length === 0 && <p className="tome__empty">Nic takového tu nestojí.</p>}
@@ -221,7 +226,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
             <button type="button" className="round-btn city-card__close" onClick={sendBack} aria-label="Vrátit knihu do knihovny">
               <X size={18} />
             </button>
-            <small className="eyebrow">Z regálů městské knihovny</small>
+            <small className="eyebrow">Ze světa knih</small>
             <h3>{selected.title}</h3>
             <p className="city-card__by">{selected.authors || 'Neznámý autor'}</p>
             {facts.length > 0 && (
@@ -236,7 +241,7 @@ export default function CityLibrary({ onClose, onAddBook, addedSignal, modalOpen
             )}
             <button type="button" className="dock-btn btn-ember city-card__add" onClick={() => onAddBook(selected)}>
               <BookPlus size={20} />
-              Přidat do knihovny
+              Přidat do chaty
             </button>
           </aside>
         )}

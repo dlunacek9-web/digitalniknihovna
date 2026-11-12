@@ -64,11 +64,13 @@ describe('reconcileBorrowedBooks', () => {
     expect(removed).toHaveLength(1);
   });
 
-  it('kniha jiného účtu v tomto prohlížeči zůstane', () => {
-    const first = reconcileBorrowedBooks([], cabins, [loan()]).books;
-    const { books, changed } = reconcileBorrowedBooks(first, cabins, []);
-    expect(books).toEqual(first);
-    expect(changed).toBe(false);
+  it('kniha, jejíž výpůjčka na serveru už není (smazaná knihovna), z chaty zmizí', () => {
+    const own = { id: 'b_1', library_id: 'a', title: 'Moje' };
+    const first = reconcileBorrowedBooks([own], cabins, [loan()]).books;
+    const { books, removed, changed } = reconcileBorrowedBooks(first, cabins, []);
+    expect(books).toEqual([own]);
+    expect(removed).toHaveLength(1);
+    expect(changed).toBe(true);
   });
 
   it('beze změny hlásí changed = false', () => {

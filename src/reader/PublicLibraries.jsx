@@ -270,6 +270,7 @@ function Interior({ library, myLoans, onReloadLoans, onBack, onOpenLoans }) {
           query={query}
           onQueryChange={setQuery}
           results={results}
+          emptyText="V katalogu nic takového není."
           onClose={() => setSearchOpen(false)}
           onOpenBook={(book) => {
             setSearchOpen(false);

@@ -1,0 +1,14 @@
+{
+  "name": "Lukutupa – digitální knihovna",
+  "short_name": "Lukutupa",
+  "description": "Tvoje digitální knihovna ve 3D chatě.",
+  "lang": "cs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121b27",
+  "theme_color": "#121b27",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

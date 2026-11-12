@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { User, Sparkles, Download, Upload, FileSpreadsheet, Bookmark, Award, ShieldCheck } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { plural } from '../services/genres';
 import LibraryStats from './LibraryStats';
 import LoansList from './LoansList';
 import { useAuth } from '../lib/AuthContext';
@@ -12,7 +13,7 @@ export default function ProfileView({ books, onDataImported, showNotification, o
 
   const handleExportJson = () => {
     downloadFile(backupFileName('json'), buildJsonBackup(exportLibraryData()), 'application/json');
-    showNotification('Záloha knihovny byla stažena.');
+    showNotification('Záloha všech chat byla stažena.');
   };
 
   const handleExportCsv = () => {
@@ -28,8 +29,10 @@ export default function ProfileView({ books, onDataImported, showNotification, o
     try {
       const result = await importLibraryData(parseJsonBackup(await file.text()));
       onDataImported();
-      const skipped = result.booksSkipped ? `, ${result.booksSkipped} už v knihovně bylo` : '';
-      showNotification(`Importováno ${result.booksAdded} knih${skipped}.`);
+      const skipped = result.booksSkipped
+        ? `, ${result.booksSkipped} ${plural(result.booksSkipped, 'kniha už v chatě byla', 'knihy už v chatě byly', 'knih už v chatě bylo')}`
+        : '';
+      showNotification(`Obnoveno ${result.booksAdded} ${plural(result.booksAdded, 'kniha', 'knihy', 'knih')}${skipped}.`);
     } catch (err) {
       showNotification(err.message || 'Import se nezdařil.', 'error');
     }
@@ -48,7 +51,6 @@ export default function ProfileView({ books, onDataImported, showNotification, o
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-1.5">
             <h2 className="font-bold text-stone-900 text-base">{user?.user_metadata?.name || displayName}</h2>
-            <ShieldCheck className="w-4 h-4 text-burgundy-900" />
           </div>
           <p className="text-stone-500 text-xs truncate">{user?.email || 'Osobní účet knihovny'}</p>
           <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-stone-100 text-stone-600 text-[10px] font-semibold rounded-full">
@@ -97,45 +99,10 @@ export default function ProfileView({ books, onDataImported, showNotification, o
         </div>
       </div>
 
-      {/* Future Features / Prepared Modular Cards */}
-      <div>
-        <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2.5 px-1">
-          Připravované funkce
-        </h3>
-        <div className="bg-white rounded-3xl p-4 border border-stone-200/80 shadow-sm space-y-3.5">
-          <div className="flex items-center space-x-3 text-stone-500 opacity-75">
-            <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 flex-shrink-0">
-              <Bookmark className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-stone-800">Stav čtení & Wishlist</h4>
-                <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full font-medium">Právě v vývoji</span>
-              </div>
-              <p className="text-[11px] text-stone-400 truncate">Přečteno / Rozečteno / Chci si přečíst</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 text-stone-500 opacity-75 pt-2 border-t border-stone-100">
-            <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-600 flex-shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-stone-800">AI Doporučování knih</h4>
-                <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full font-medium">Plánováno</span>
-              </div>
-              <p className="text-[11px] text-stone-400 truncate">Personalizované tipy podle tvé knihovny</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       {/* App Version Info */}
       <div className="text-center pt-2">
-        <p className="text-xs font-bold text-burgundy-900">Moje Knihovna</p>
-        <p className="text-[11px] text-stone-400">Verze 1.0.0 MVP • Mobilní PWA</p>
+        <p className="text-xs font-bold text-burgundy-900">Lukutupa</p>
+        <p className="text-[11px] text-stone-400">Tvoje digitální knihovna · verze 1.0</p>
       </div>
     </div>
   );

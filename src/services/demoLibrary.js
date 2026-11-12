@@ -79,7 +79,7 @@ const DEMO_SHELVES = {
     ['Zabít ptáčka', 'Harper Lee', 376, 1960],
     ['Sto roků samoty', 'Gabriel García Márquez', 440, 1967],
     ['Lolita', 'Vladimir Nabokov', 368, 1955],
-    ['Hrdý Budžes', 'Josef Škvorecký', 272, 1969],
+    ['Hrdý Budžes', 'Irena Dousková', 272, 1998],
     ['Zbabělci', 'Josef Škvorecký', 440, 1958],
     ['Obsluhoval jsem anglického krále', 'Bohumil Hrabal', 168, 1971],
     ['Ostře sledované vlaky', 'Bohumil Hrabal', 120, 1965],
@@ -154,7 +154,7 @@ const DEMO_SHELVES = {
     ['Cesta kolem světa za 80 dní', 'Jules Verne', 256, 1873]
   ],
   Kuchařky: [
-    ['Česká kuchařka', 'Marie Janků-Sandtnerová', 640, 1900],
+    ['Domácí kuchařka', 'Magdalena Dobromila Rettigová', 400, 1826],
     ['Jamie Oliver: 5 ingrediencí', 'Jamie Oliver', 288, 2017],
     ['Plenty', 'Yotam Ottolenghi', 288, 2010],
     ['Salt Fat Acid Heat', 'Samin Nosrat', 480, 2017]
@@ -170,7 +170,7 @@ const DEMO_SHELVES = {
     ['Maus', 'Art Spiegelman', 296, 1991],
     ['Watchmen', 'Alan Moore', 416, 1987],
     ['Persepolis', 'Marjane Satrapi', 160, 2000],
-    ['Kočičí válka', 'Jiří Grus', 48, 2013],
+    ['Alois Nebel', 'Jaroslav Rudiš, Jaromír 99', 224, 2003],
     ['Batman: Rok první', 'Frank Miller', 144, 1987],
     ['Asterix a Galové', 'René Goscinny', 48, 1961]
   ],
@@ -178,11 +178,11 @@ const DEMO_SHELVES = {
     ['Pipi Dlouhá punčocha', 'Astrid Lindgrenová', 160, 1945],
     ['Alenka v říši divů', 'Lewis Carroll', 176, 1865],
     ['Medvídek Pú', 'A. A. Milne', 160, 1926],
-    ['Krtek a hrnec', 'Zdeněk Miler', 24, 1956],
+    ['Ferda Mravenec', 'Ondřej Sekora', 96, 1936],
     ['Karlík a továrna na čokoládu', 'Roald Dahl', 176, 1964],
     ['Matylda', 'Roald Dahl', 240, 1988],
     ['Čtyřlístek 1', 'Jaroslav Němeček', 48, 1969],
-    ['Rychlé šípy', 'Jaroslav Foglar', 224, 1941]
+    ['Záhada hlavolamu', 'Jaroslav Foglar', 240, 1941]
   ]
 };
 

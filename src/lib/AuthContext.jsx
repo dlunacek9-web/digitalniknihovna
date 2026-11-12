@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from './supabase';
 import { toCzechMessage, unwrap } from './errors';
 import { loadLibraryStore, resetLibraryStore } from '../services/libraryStore';
@@ -55,11 +55,15 @@ export function AuthProvider({ children }) {
   }, [userId]);
 
   // Chaty a knihy čtenáře se načtou z účtu hned po přihlášení.
+  // Data se mažou jen po odhlášení, ať při prvním načtení nezmizí ukázka bez účtu.
+  const previousUserId = useRef(null);
   useEffect(() => {
     setStoreReady(false);
     setStoreError('');
+    const hadUser = previousUserId.current;
+    previousUserId.current = userId ?? null;
     if (!userId) {
-      resetLibraryStore();
+      if (hadUser) resetLibraryStore();
       return undefined;
     }
     let alive = true;

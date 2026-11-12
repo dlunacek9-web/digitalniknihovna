@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-react';
 import { bookColor, genreOf } from '../services/genres';
 
 /** Vyhledávání v chatě — papírový list nahoře přes scénu. */
-export default function SearchSheet({ query, onQueryChange, results, onClose, onOpenBook }) {
+export default function SearchSheet({ query, onQueryChange, results, onClose, onOpenBook, libraryNames, emptyText = 'Nic takového tu není.' }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function SearchSheet({ query, onQueryChange, results, onClose, on
 
         {query.trim() && (
           <ul className="search-sheet__results">
-            {results.length === 0 && <li className="search-sheet__empty">V chatě nic takového není.</li>}
+            {results.length === 0 && <li className="search-sheet__empty">{emptyText}</li>}
             {results.map((book) => (
               <li key={book.id}>
                 <button type="button" onClick={() => onOpenBook(book)}>
@@ -38,6 +38,9 @@ export default function SearchSheet({ query, onQueryChange, results, onClose, on
                   <span>
                     <b>{book.title}</b>
                     <small>{book.authors}</small>
+                    {libraryNames?.[book.library_id] && (
+                      <small className="search-sheet__where">Chata: {libraryNames[book.library_id]}</small>
+                    )}
                   </span>
                   <em>{genreOf(book)}</em>
                 </button>

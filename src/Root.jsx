@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { NotConfigured, PageLoading } from './pages/PlainParts';
+import { loadDemoStore } from './services/libraryStore';
 
 // Každá část je vlastní balík: knihovnická část a účet nenačítají Three.js.
 const App = lazy(() => import('./App.jsx'));
@@ -19,6 +20,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<RequireAccount><App /></RequireAccount>} />
+      <Route path="/ukazka" element={<DemoApp />} />
       <Route path="/knihovny" element={<PublicLibraries />} />
       <Route path="/prihlaseni" element={<AuthPage />} />
       <Route path="/ucet" element={<AccountPage />} />
@@ -46,6 +48,18 @@ function RequireAccount({ children }) {
     );
   }
   return children;
+}
+
+// Ukázka bez účtu pro první dojem: chata s ukázkovými knihami, nic se neukládá.
+function DemoApp() {
+  const { loading, user } = useAuth();
+  const [ready] = React.useState(() => {
+    loadDemoStore();
+    return true;
+  });
+  if (loading) return <PageLoading />;
+  if (user) return <Navigate to="/" replace />;
+  return ready && <App demo />;
 }
 
 // HashRouter: GitHub Pages neumí přesměrovat neznámé cesty na index.html.

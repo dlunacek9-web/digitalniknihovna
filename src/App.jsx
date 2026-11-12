@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Camera, ChevronDown, Search, X } from 'lucide-react';
+import { Link } from 'react-router';
+import { ArrowLeft, Camera, ChevronDown, Search, UserCircle } from 'lucide-react';
 import LibraryCabin from './components/LibraryCabin';
 import ShelfSheet from './components/ShelfSheet';
 import BookDetail from './components/BookDetail';
@@ -38,7 +39,7 @@ import { useAuth } from './lib/AuthContext';
 const BookScanner = lazy(() => import('./components/BookScanner'));
 const CityLibrary = lazy(() => import('./components/CityLibrary'));
 
-export default function App() {
+export default function App({ demo = false }) {
   const userId = useAuth().user?.id;
   const [activeTab, setActiveTab] = useState('library'); // 'library' | 'scan' | 'profile'
 
@@ -61,7 +62,8 @@ export default function App() {
 
   // Scanner & manual entry state
   const [scannedPreviewBook, setScannedPreviewBook] = useState(null);
-  const [manualEntryIsbn, setManualEntryIsbn] = useState(null);
+  // null | { isbn } — ruční zadání po neúspěšném hledání nebo pro knihu bez ISBN
+  const [manualEntry, setManualEntry] = useState(null);
   const [isDuplicateAlert, setIsDuplicateAlert] = useState(false);
   const [notification, setNotification] = useState(null);
   const [keepScanning, setKeepScanning] = useState(() => getSetting('keep_scanning', false) === true);
@@ -136,10 +138,14 @@ export default function App() {
     [shelves, openGenre]
   );
   const selectedBook = allBooks.find((b) => b.id === selectedBookId) || null;
+  // Hledá se ve všech chatách, výsledek ukáže, ve které kniha stojí.
   const searchResults = useMemo(
-    () => (searchQuery.trim() ? listBooks(activeLibraryId, searchQuery) : []),
-    [searchQuery, activeLibraryId, allBooks]
+    () => (searchQuery.trim() ? listBooks(null, searchQuery) : []),
+    // allBooks: po změně knih se má hledání přepočítat
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchQuery, allBooks]
   );
+  const libraryNames = useMemo(() => Object.fromEntries(libraries.map((lib) => [lib.id, lib.name])), [libraries]);
   const libraryCounts = useMemo(() => {
     const counts = {};
     for (const b of allBooks) {
@@ -148,7 +154,12 @@ export default function App() {
     }
     return counts;
   }, [allBooks]);
-  const scanTargetId = targetScanLibraryId || activeLibraryId || '';
+  // Do ukázkové chaty se ukládat nedá, cílem skenování je vždy vlastní chata.
+  const ownLibraries = useMemo(() => libraries.filter((lib) => !lib.demo), [libraries]);
+  const scanTargetId =
+    [targetScanLibraryId, activeLibraryId].find((id) => ownLibraries.some((lib) => lib.id === id)) ||
+    ownLibraries[0]?.id ||
+    '';
   const scanTargetGenres = useMemo(
     () => groupIntoShelves(allBooks.filter((b) => b.library_id === scanTargetId)).map((s) => s.genre),
     [allBooks, scanTargetId]
@@ -184,7 +195,13 @@ export default function App() {
     setSearchQuery('');
   };
 
+  // Ukázka bez účtu nic neukládá; místo chyby z databáze nabídne registraci.
+  const demoOnly = () => {
+    showNotification('V ukázce se nic neukládá', 'Vytvoř si účet a postav vlastní chatu.', 'error');
+  };
+
   const handleCreateLibrary = async (name) => {
+    if (demo) return demoOnly();
     try {
       const created = await addLibrary(name);
       switchLibrary(created.id);
@@ -200,12 +217,12 @@ export default function App() {
     try {
       if (await renameLibrary(id, name)) {
         refresh();
-        showNotification('Knihovna přejmenována', name);
+        showNotification('Chata přejmenována', name);
       } else {
-        showNotification('Nepodařilo se přejmenovat knihovnu', '', 'error');
+        showNotification('Chatu se nepodařilo přejmenovat', '', 'error');
       }
     } catch (err) {
-      showNotification('Nepodařilo se přejmenovat knihovnu', err.message, 'error');
+      showNotification('Chatu se nepodařilo přejmenovat', err.message, 'error');
     }
   };
 
@@ -216,15 +233,14 @@ export default function App() {
       setOpenGenre(null);
       refresh();
       setTargetScanLibraryId(getActiveLibraryId() || '');
-      showNotification('Knihovna smazána', lib ? lib.name : '');
+      showNotification('Chata smazána', lib ? lib.name : '');
     } catch (err) {
-      showNotification('Knihovnu se nepodařilo smazat', err.message, 'error');
+      showNotification('Chatu se nepodařilo smazat', err.message, 'error');
     }
   };
 
   const handleSelectTargetScanLibrary = (libId) => {
     setTargetScanLibraryId(libId);
-    setActiveLibraryId(libId);
   };
 
   // Delete book from library
@@ -295,6 +311,18 @@ export default function App() {
     }
   };
 
+  const handleEditBook = async (book, changes) => {
+    try {
+      await updateBook(book.id, changes);
+      refresh();
+      showNotification('Údaje knihy uloženy', changes.title || book.title);
+      return true;
+    } catch (err) {
+      showNotification('Nepodařilo se uložit změnu', err.message, 'error');
+      return false;
+    }
+  };
+
   // Lend / return a book
   const handleLendBook = async (id, borrower, lentAt) => {
     let updated = null;
@@ -328,6 +356,11 @@ export default function App() {
 
   // Save book from preview
   const handleSaveBook = async (bookData) => {
+    if (demo) {
+      setScannedPreviewBook(null);
+      setManualEntry(null);
+      return demoOnly();
+    }
     try {
       const targetLibId = scanTargetId || getActiveLibraryId();
       const genre = genreOf(bookData);
@@ -338,8 +371,8 @@ export default function App() {
       const stayInScanner = keepScanning && activeTab === 'scan';
 
       setScannedPreviewBook(null);
-      setManualEntryIsbn(null);
-      // Z městské knihovny se nikam neodchází, kniha jen odletí domů.
+      setManualEntry(null);
+      // Ze světa knih se nikam neodchází, kniha jen odletí domů.
       if (!stayInScanner && !cityOpen) {
         setOpenGenre(null);
         setActiveTab('library');
@@ -384,10 +417,10 @@ export default function App() {
       }
 
       showNotification('Kniha v katalogu není', result.error || 'Můžeš ji vložit ručně.', 'error');
-      setManualEntryIsbn(isbn);
+      setManualEntry({ isbn });
     } catch (err) {
       showNotification('Nepodařilo se vyhledat knihu', 'Můžeš ji vložit ručně.', 'error');
-      setManualEntryIsbn(isbn);
+      setManualEntry({ isbn });
     }
   };
 
@@ -403,7 +436,7 @@ export default function App() {
     });
   };
 
-  // Kniha z městské knihovny projde stejným náhledem jako naskenovaná.
+  // Kniha ze světa knih projde stejným náhledem jako naskenovaná.
   const handleCityAddBook = (book) => {
     const isbn = book.isbn ? toIsbn13(book.isbn) : '';
     const alreadyInLibrary = Boolean(isbn) && listBooks(scanTargetId).some((b) => toIsbn13(b.isbn) === isbn);
@@ -450,6 +483,9 @@ export default function App() {
             <button type="button" className="page-wood__back" onClick={() => setActiveTab('library')}>
               <ArrowLeft size={16} /> Zpět do chaty
             </button>
+            <Link className="page-wood__back page-wood__account" to="/ucet">
+              <UserCircle size={16} /> Nastavení účtu
+            </Link>
             <ProfileView
               books={allBooks}
               onDataImported={refresh}
@@ -478,6 +514,13 @@ export default function App() {
               <ReaderNav />
             </div>
           </header>
+
+          {demo && (
+            <div className="demo-banner" role="note">
+              <span>Prohlížíš ukázku bez účtu. Změny se neukládají.</span>
+              <Link to="/prihlaseni?rezim=registrace">Vytvořit účet zdarma</Link>
+            </div>
+          )}
 
           {books.length === 0 && (
             <div className="cabin-empty">
@@ -511,27 +554,17 @@ export default function App() {
       {/* Unmounted while a result modal is open, so the camera restarts fresh for the next book */}
       {activeTab === 'scan' && (
         <div className="page-wood wood-wall fixed inset-0 z-10 overflow-y-auto">
-          <button
-            type="button"
-            aria-label="Zavřít skener"
-            onClick={() => {
-              setActiveTab('library');
-              refresh();
-            }}
-            className="fixed top-3 right-3 z-20 w-10 h-10 rounded-full bg-white/90 text-stone-700 shadow-md border border-stone-200 flex items-center justify-center hover:bg-white"
-          >
-            <X className="w-5 h-5" />
-          </button>
           <div className="page-wood__inner page-wood__inner--wide">
-            {!scannedPreviewBook && !manualEntryIsbn && (
+            {!scannedPreviewBook && !manualEntry && (
               <Suspense fallback={null}>
                 <BookScanner
-                  libraries={libraries}
+                  libraries={ownLibraries}
                   selectedLibraryId={scanTargetId}
                   onSelectLibrary={handleSelectTargetScanLibrary}
                   keepScanning={keepScanning}
                   onKeepScanningChange={handleKeepScanningChange}
                   onIsbnDetected={handleIsbnDetected}
+                  onManualEntry={() => setManualEntry({ isbn: '' })}
                   onClose={() => {
                     setActiveTab('library');
                     refresh();
@@ -575,6 +608,8 @@ export default function App() {
           query={searchQuery}
           onQueryChange={setSearchQuery}
           results={searchResults}
+          libraryNames={libraryNames}
+          emptyText="V žádné chatě nic takového není."
           onClose={() => setSearchOpen(false)}
           onOpenBook={(book) => {
             setSearchOpen(false);
@@ -595,6 +630,7 @@ export default function App() {
           shelfNames={shelves.map((s) => s.genre)}
           onMoveToShelf={handleMoveBook}
           onStatusChange={handleStatusChange}
+          onEdit={handleEditBook}
           onDelete={handleDeleteBook}
           onLend={handleLendBook}
           onReturn={handleReturnBook}
@@ -608,7 +644,7 @@ export default function App() {
           book={scannedPreviewBook}
           alreadyInLibrary={isDuplicateAlert}
           existingGenres={scanTargetGenres}
-          libraries={libraries.filter((lib) => !lib.demo)}
+          libraries={ownLibraries}
           targetLibraryId={scanTargetId}
           onTargetChange={handleTargetLibraryChange}
           onConfirm={handleSaveBook}
@@ -617,11 +653,15 @@ export default function App() {
       )}
 
       {/* Manual Book Entry Modal (if ISBN lookup fails or returns no book) */}
-      {manualEntryIsbn && (
+      {manualEntry && (
         <ManualBookEntryModal
-          initialIsbn={manualEntryIsbn}
+          initialIsbn={manualEntry.isbn}
+          existingGenres={scanTargetGenres}
+          libraries={ownLibraries}
+          targetLibraryId={scanTargetId}
+          onTargetChange={setTargetScanLibraryId}
           onConfirm={handleSaveBook}
-          onCancel={() => setManualEntryIsbn(null)}
+          onCancel={() => setManualEntry(null)}
         />
       )}
 

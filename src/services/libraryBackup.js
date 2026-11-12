@@ -53,7 +53,7 @@ export function parseJsonBackup(text) {
   }
 
   if (!data || data.format !== BACKUP_FORMAT || !Array.isArray(data.libraries) || !Array.isArray(data.books)) {
-    throw new Error('Soubor není záloha Digitální knihovny.');
+    throw new Error('Soubor není záloha z Lukutupy.');
   }
 
   return {

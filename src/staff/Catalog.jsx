@@ -278,29 +278,35 @@ export default function Catalog() {
                     <td>
                       <div className="staff-row-actions">
                         <button type="button" className="plain-btn" onClick={() => openEdit(item)}>Upravit</button>
-                        <button
-                          type="button"
-                          className="plain-btn"
-                          onClick={() => openForm({ preset: copyPreset(item), heading: 'Přidat další výtisk' })}
-                        >
-                          Další výtisk
-                        </button>
-                        <button
-                          type="button"
-                          className="plain-btn"
-                          onClick={() => openForm({ preset: editionPreset(item), heading: 'Přidat jiné vydání' })}
-                        >
-                          Jiné vydání
-                        </button>
-                        {item.status === 'available' && (
-                          <ConfirmButton disabled={action.busy} onConfirm={() => changeStatus(item, 'unavailable')}>Vyřadit</ConfirmButton>
-                        )}
-                        {item.status === 'unavailable' && (
-                          <button type="button" className="plain-btn" disabled={action.busy} onClick={() => changeStatus(item, 'available')}>
-                            Vrátit do oběhu
-                          </button>
-                        )}
-                        <ConfirmButton disabled={action.busy} confirmLabel="Opravdu smazat?" onConfirm={() => removeItem(item)}>Smazat</ConfirmButton>
+                        {/* Méně častá tlačítka jsou v menu, ať řádek na mobilu nepřetéká. */}
+                        <details className="staff-more">
+                          <summary className="plain-btn" aria-label={`Další akce: ${item.title}`}>Další…</summary>
+                          <div className="staff-more__menu">
+                            <button
+                              type="button"
+                              className="plain-btn"
+                              onClick={() => openForm({ preset: copyPreset(item), heading: 'Přidat další výtisk' })}
+                            >
+                              Další výtisk
+                            </button>
+                            <button
+                              type="button"
+                              className="plain-btn"
+                              onClick={() => openForm({ preset: editionPreset(item), heading: 'Přidat jiné vydání' })}
+                            >
+                              Jiné vydání
+                            </button>
+                            {item.status === 'available' && (
+                              <ConfirmButton disabled={action.busy} onConfirm={() => changeStatus(item, 'unavailable')}>Vyřadit</ConfirmButton>
+                            )}
+                            {item.status === 'unavailable' && (
+                              <button type="button" className="plain-btn" disabled={action.busy} onClick={() => changeStatus(item, 'available')}>
+                                Vrátit do oběhu
+                              </button>
+                            )}
+                            <ConfirmButton disabled={action.busy} confirmLabel="Opravdu smazat?" onConfirm={() => removeItem(item)}>Smazat</ConfirmButton>
+                          </div>
+                        </details>
                       </div>
                     </td>
                   </tr>

@@ -5,6 +5,7 @@ import { useAsync } from '../lib/useAsync';
 import { ACTIVE_LOAN_STATUSES, isOverdue } from '../lib/loanRules';
 import { countCatalog, listLibraryLoans } from '../services/publicLibraryApi';
 import { LoadState } from '../pages/PlainParts';
+import { plural } from '../services/genres';
 
 export default function Overview() {
   const { library } = useStaffContext();
@@ -33,9 +34,9 @@ export default function Overview() {
       )}
       <LoadState loading={loading} error={error} hasData={Boolean(data)} onRetry={reload}>
         <div className="staff-cards">
-          <Link className="staff-card" to="/knihovnik/katalog"><b>{data?.items}</b> výtisků v katalogu</Link>
+          <Link className="staff-card" to="/knihovnik/katalog"><b>{data?.items}</b> {plural(data?.items ?? 0, 'výtisk', 'výtisky', 'výtisků')} v katalogu</Link>
           <Link className={`staff-card ${count('requested') ? 'is-warn' : ''}`} to="/knihovnik/zadosti">
-            <b>{count('requested')}</b> čekajících žádostí
+            <b>{count('requested')}</b> {plural(count('requested'), 'čekající žádost', 'čekající žádosti', 'čekajících žádostí')}
           </Link>
           <Link className={`staff-card ${returning ? 'is-warn' : ''}`} to="/knihovnik/vypujcky"><b>{returning}</b> chce vrátit</Link>
           <Link className="staff-card" to="/knihovnik/vypujcky"><b>{count('approved')}</b> čeká na předání</Link>

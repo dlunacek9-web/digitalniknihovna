@@ -39,7 +39,8 @@ function loanToBook(loan, cabinId, now) {
 /**
  * Srovná knihy v chatách s výpůjčkami čtenáře. Schválená výpůjčka přidá knihu do zvolené
  * chaty a vyřízená ji odebere. Polička vznikne a zmizí sama, protože se odvozuje z knih.
- * Výpůjčka, která v seznamu není, patří jinému účtu v tomto prohlížeči, a zůstává.
+ * Chaty patří účtu, takže výpůjčka, kterou server nevrátil, už neexistuje (například
+ * po smazání knihovny), a kniha z chaty zmizí také.
  */
 export function reconcileBorrowedBooks(books, cabins, loans, now = new Date().toISOString()) {
   const loansById = new Map(loans.map((loan) => [loan.id, loan]));
@@ -47,9 +48,9 @@ export function reconcileBorrowedBooks(books, cabins, loans, now = new Date().to
   const shelved = new Set();
 
   const next = books.flatMap((book) => {
-    const loan = book.library_loan && loansById.get(book.library_loan.id);
-    if (!loan) return [book];
-    if (!SHELVED_STATUSES.includes(loan.status)) {
+    if (!book.library_loan) return [book];
+    const loan = loansById.get(book.library_loan.id);
+    if (!loan || !SHELVED_STATUSES.includes(loan.status)) {
       removed.push(book);
       return [];
     }

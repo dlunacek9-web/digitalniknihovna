@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Edit2, Library, Trash2, X } from 'lucide-react';
 import { plural } from '../services/genres';
 
-/** Přepínač knihoven (každá knihovna = vlastní chata) + založení, přejmenování, smazání. */
+/** Přepínač chat (osobních sbírek knih) + založení, přejmenování, smazání. */
 export default function LibrarySheet({ libraries, counts, activeId, onSelect, onCreate, onRename, onDelete, onClose }) {
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -27,11 +27,11 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
   };
 
   return (
-    <div className="search-sheet" role="dialog" aria-modal="true" aria-label="Moje knihovny" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="search-sheet" role="dialog" aria-modal="true" aria-label="Moje chaty" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="search-sheet__panel">
         <div className="search-sheet__field">
           <Library size={20} />
-          <span className="library-sheet__title">Moje knihovny</span>
+          <span className="library-sheet__title">Moje chaty</span>
           <button type="button" className="round-btn" onClick={onClose} aria-label="Zavřít">
             <X size={18} />
           </button>
@@ -76,7 +76,7 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
                   className={`icon-btn is-danger`}
                   disabled={isLastOwn}
                   aria-label={confirmDeleteId === lib.id ? `Opravdu smazat ${lib.name}` : `Smazat ${lib.name}`}
-                  title={isLastOwn ? 'Poslední knihovnu nelze smazat, nejdřív vytvoř novou' : confirmDeleteId === lib.id ? 'Klikni znovu: smaže knihovnu i všechny knihy v ní' : 'Smazat'}
+                  title={isLastOwn ? 'Poslední chatu nejde smazat, nejdřív postav novou' : confirmDeleteId === lib.id ? 'Klikni znovu: smaže chatu i všechny knihy v ní' : 'Smazat'}
                   onClick={() => {
                     if (confirmDeleteId === lib.id) {
                       onDelete(lib.id);
@@ -94,14 +94,14 @@ export default function LibrarySheet({ libraries, counts, activeId, onSelect, on
           })}
         </ul>
         {confirmDeleteId && (
-          <p className="library-sheet__warning">Druhým klepnutím na koš smažeš knihovnu i všechny knihy v ní.</p>
+          <p className="library-sheet__warning">Druhým klepnutím na koš smažeš chatu i všechny knihy v ní.</p>
         )}
         {!confirmDeleteId && hasSingleOwn && (
-          <p className="library-sheet__warning">Poslední knihovnu nelze smazat. Nejdřív postav novou.</p>
+          <p className="library-sheet__warning">Poslední chatu nejde smazat. Nejdřív postav novou.</p>
         )}
 
         <form className="library-sheet__form" onSubmit={submitCreate}>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nová knihovna, např. Chalupa" aria-label="Název nové knihovny" />
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nová chata, např. Chalupa" aria-label="Název nové chaty" />
           <button type="submit" disabled={!newName.trim()}>Postavit chatu</button>
         </form>
       </div>
